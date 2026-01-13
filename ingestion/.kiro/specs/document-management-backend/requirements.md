@@ -2,18 +2,17 @@
 
 ## Introduction
 
-A document management backend system that allows multiple users to upload various document types (PDF, Word, PowerPoint, Google Docs via link), attach metadata, extract text for a chatbot knowledge base, and search documents via API. The system uses AWS infrastructure with Elasticsearch for the knowledge base, optimized for cost efficiency.
+A document management backend system that allows multiple users to upload various document types (PDF, Word, PowerPoint, Google Docs via link), attach metadata, and search documents via API. AWS Bedrock Knowledge Bases handles text extraction and semantic search automatically. The system uses AWS infrastructure optimized for cost efficiency.
 
 ## Glossary
 
 - **Document_Service**: The core backend service handling document operations
 - **Storage_Service**: The component responsible for storing documents in AWS S3
-- **Text_Extractor**: The component that extracts text content from uploaded documents
-- **Chunker**: The component that breaks extracted text into smaller segments for the knowledge base
-- **Knowledge_Base_Service**: The component that interfaces with AWS Bedrock Knowledge Bases for document indexing and retrieval
+- **Conversion_Service**: The component that converts unsupported formats (Google Docs, PowerPoint) to PDF for Bedrock KB
+- **Knowledge_Base_Service**: The component that interfaces with AWS Bedrock Knowledge Bases for document indexing and semantic search
 - **Auth_Service**: The component handling user authentication and authorization via AWS Cognito
 - **Metadata_Store**: The database storing document metadata (DynamoDB)
-- **Email_Ingestion_Service**: The component that receives and processes emails for document ingestion via Amazon SES
+- **Organization**: A group of users who share access to documents
 - **Admin**: A user role with full access to manage all documents and users within an organization
 - **User**: A standard role with access to upload and manage their own documents
 
@@ -27,8 +26,8 @@ A document management backend system that allows multiple users to upload variou
 
 1. WHEN a user uploads a PDF file, THE Document_Service SHALL accept the file and store it in Storage_Service
 2. WHEN a user uploads a Word document (.doc, .docx), THE Document_Service SHALL accept the file and store it in Storage_Service
-3. WHEN a user uploads a PowerPoint document (.ppt, .pptx), THE Document_Service SHALL accept the file and store it in Storage_Service
-4. WHEN a user provides a Google Docs link, THE Document_Service SHALL fetch the document content and store it in Storage_Service
+3. WHEN a user uploads a PowerPoint document (.ppt, .pptx), THE Document_Service SHALL convert it to PDF via Conversion_Service and store it in Storage_Service
+4. WHEN a user provides a Google Docs link, THE Document_Service SHALL fetch the document via Conversion_Service and store it in Storage_Service
 5. IF a user uploads an unsupported file type, THEN THE Document_Service SHALL reject the upload with a descriptive error message
 6. IF a user uploads a file exceeding the maximum size limit, THEN THE Document_Service SHALL reject the upload with a size limit error
 
@@ -42,51 +41,25 @@ A document management backend system that allows multiple users to upload variou
 2. WHEN a document is uploaded, THE Document_Service SHALL automatically capture and store the file extension
 3. WHEN a document is uploaded, THE Document_Service SHALL allow the user to specify an optional expiry date
 4. WHEN a document is uploaded, THE Document_Service SHALL allow the user to assign a custom category
-5. WHEN a document is uploaded, THE Document_Service SHALL assign version number 1 to the document
-6. WHEN a document is updated, THE Document_Service SHALL increment the version number
-7. THE Metadata_Store SHALL persist all document metadata including location, file extension, expiry date, custom category, and version number
-8. WHEN a document is ingested via email, THE Document_Service SHALL extract metadata from email headers including sender and subject
+5. WHEN a document is uploaded, THE Document_Service SHALL allow the user to assign a sensitivity ranking from 1 to 5
+6. WHEN a document is uploaded without a sensitivity ranking, THE Document_Service SHALL default the sensitivity to 3
+7. WHEN a document is uploaded, THE Document_Service SHALL assign version number 1 to the document
+8. WHEN a document is updated, THE Document_Service SHALL increment the version number
+9. THE Metadata_Store SHALL persist all document metadata including location, file extension, expiry date, custom category, sensitivity ranking, and version number
 
-### Requirement 3: Email Ingestion
+### Requirement 3: Knowledge Base Indexing
 
-**User Story:** As a user, I want to send emails with content to be included in the knowledge base, so that I can easily add information without using the upload interface.
-
-#### Acceptance Criteria
-
-1. WHEN an email is received at the designated ingestion address, THE Email_Ingestion_Service SHALL process the email for content extraction
-2. WHEN an email contains attachments (PDF, Word, PowerPoint), THE Email_Ingestion_Service SHALL extract and process each attachment as a separate document
-3. WHEN an email contains body text, THE Email_Ingestion_Service SHALL create a document from the email body content
-4. THE Email_Ingestion_Service SHALL associate ingested documents with the user based on the sender email address
-5. IF the sender email is not associated with a registered user, THEN THE Email_Ingestion_Service SHALL reject the email and send a notification to the sender
-6. WHEN processing an email, THE Email_Ingestion_Service SHALL use the email subject as the default document title
-7. THE Email_Ingestion_Service SHALL use Amazon SES for receiving inbound emails
-
-### Requirement 4: Text Extraction
-
-**User Story:** As a system administrator, I want the system to extract text from uploaded documents, so that the content can be used for the chatbot knowledge base.
+**User Story:** As a system administrator, I want documents to be indexed in AWS Bedrock Knowledge Bases, so that the chatbot can search and retrieve relevant information.
 
 #### Acceptance Criteria
 
-1. WHEN a document is successfully stored, THE Text_Extractor SHALL extract text content from PDF files
-2. WHEN a document is successfully stored, THE Text_Extractor SHALL extract text content from Word documents
-3. WHEN a document is successfully stored, THE Text_Extractor SHALL extract text content from PowerPoint documents
-4. WHEN a document is successfully stored, THE Text_Extractor SHALL extract text content from Google Docs
-5. IF text extraction fails, THEN THE Text_Extractor SHALL log the error and mark the document as extraction-failed
-6. WHEN text is extracted, THE Chunker SHALL break the text into smaller segments suitable for the knowledge base
-
-### Requirement 5: Knowledge Base Indexing
-
-**User Story:** As a system administrator, I want extracted text to be indexed in AWS Bedrock Knowledge Bases, so that the chatbot can search and retrieve relevant information.
-
-#### Acceptance Criteria
-
-1. WHEN text is extracted from a document, THE Knowledge_Base_Service SHALL sync the document to AWS Bedrock Knowledge Bases
+1. WHEN a document is stored in Storage_Service, THE Knowledge_Base_Service SHALL automatically index the document via Bedrock Knowledge Bases
 2. WHEN a document is updated, THE Knowledge_Base_Service SHALL trigger a re-sync to update the knowledge base
 3. WHEN a document is deleted, THE Knowledge_Base_Service SHALL remove the document from the knowledge base
 4. WHEN a document expires, THE Knowledge_Base_Service SHALL remove the document from the knowledge base
 5. THE Knowledge_Base_Service SHALL use Amazon OpenSearch Serverless as the vector store for Bedrock Knowledge Bases
 
-### Requirement 6: Document Search API
+### Requirement 4: Document Search API
 
 **User Story:** As a user, I want to search documents via API, so that I can find relevant documents based on content or metadata.
 
@@ -98,7 +71,7 @@ A document management backend system that allows multiple users to upload variou
 4. THE Document_Service SHALL support pagination for search results
 5. THE Document_Service SHALL only return documents the user is authorized to access
 
-### Requirement 7: User Authentication
+### Requirement 5: User Authentication
 
 **User Story:** As a user, I want to authenticate with the system, so that I can securely access my documents.
 
@@ -110,7 +83,7 @@ A document management backend system that allows multiple users to upload variou
 4. WHEN a token expires, THE Auth_Service SHALL require re-authentication
 5. THE Auth_Service SHALL use AWS Cognito for user management and authentication
 
-### Requirement 8: Authorization and Access Control
+### Requirement 6: Authorization and Access Control
 
 **User Story:** As an organization administrator, I want to control access to documents, so that users can only access documents they are authorized to view.
 
@@ -122,7 +95,7 @@ A document management backend system that allows multiple users to upload variou
 4. WHEN a user attempts to modify a document they do not own, THE Document_Service SHALL deny the operation unless the user is an Admin
 5. THE Auth_Service SHALL associate each user with exactly one organization
 
-### Requirement 9: Document Management
+### Requirement 7: Document Management
 
 **User Story:** As a user, I want to manage my documents, so that I can update, retrieve, and delete them as needed.
 
@@ -135,7 +108,7 @@ A document management backend system that allows multiple users to upload variou
 5. WHEN a user lists their documents, THE Document_Service SHALL return all documents the user is authorized to access
 6. THE Document_Service SHALL support filtering document lists by metadata fields
 
-### Requirement 10: Cost Optimization
+### Requirement 8: Cost Optimization
 
 **User Story:** As a system administrator, I want the infrastructure to be cost-efficient, so that operational costs are minimized.
 
