@@ -1,0 +1,17 @@
+[project]
+name = "caddy"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "~=3.13.0"
+dependencies = [
+    "aws-opentelemetry-distro>=0.12.2",
+    "bedrock-agentcore>=1.1.4",
+    "boto3>=1.40.71",
+    "fastapi>=0.121.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.12.4",
+    "strands-agents>=1.15.0",
+    "strands-agents-tools>=0.2.14",
+    "uvicorn[standard]>=0.38.0",
+]

@@ -9,6 +9,7 @@
 - Do not make changes without user permission
 - Always ask before modifying files
 - Explain what you plan to do before doing it
+- Always run `cdk synth` when making changes to CDK
 
 ## Project Standards
 - Follow the established project structure
