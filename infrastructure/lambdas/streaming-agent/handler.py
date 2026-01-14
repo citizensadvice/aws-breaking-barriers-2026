@@ -2,7 +2,6 @@ import json
 import os
 import boto3
 import urllib3
-import ast
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from aws_lambda_powertools import Logger
@@ -128,6 +127,18 @@ def lambda_handler(event, context):
                                         "sessionId": session_id,
                                         "text": delta["text"]
                                     })
+                            
+                            # Check for tool usage
+                            elif "contentBlockStart" in event:
+                                start = event["contentBlockStart"].get("start", {})
+                                if "toolUse" in start:
+                                    tool_name = start["toolUse"].get("name")
+                                    if tool_name:
+                                        publish_to_appsync(channel_name, {
+                                            "type": "tool_use",
+                                            "sessionId": session_id,
+                                            "text": f"🔧 Using tool: {tool_name}"
+                                        })
                             
                     except json.JSONDecodeError as e:
                         logger.error(f"Failed to parse event JSON: {e}, line: {event_json}")
