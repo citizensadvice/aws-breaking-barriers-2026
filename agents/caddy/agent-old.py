@@ -1,4 +1,4 @@
-# agent.py - Streaming version
+# agent-old.py
 import logging
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent, tool
@@ -110,15 +110,11 @@ agent = Agent(
 )
 
 @app.entrypoint
-async def agent_invocation(payload):
-    """Handler for agent invocation with streaming support"""
-    user_message = payload.get("prompt", "No prompt found in input, please guide customer to create a json payload with prompt key")
-    
-    stream = agent.stream_async(user_message)
-    
-    async for event in stream:
-        #print(event)
-        yield event
+def invoke(payload):
+    """Process user input and return a response"""
+    user_message = payload.get("prompt", "Hello! How can I help you today?")
+    result = agent(user_message)
+    return {"result": result.message}
 
 if __name__ == "__main__":
     app.run()

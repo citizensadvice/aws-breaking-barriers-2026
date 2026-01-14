@@ -98,15 +98,28 @@ cd deployment_package && zip -r ../deployment_package.zip . && cd ..
 zip deployment_package.zip agent.py
 
 # Upload to S3 deployment bucket
-aws s3 cp deployment_package.zip s3://YOUR_DEPLOYMENT_BUCKET_NAME/deployment_package.zip
+aws s3 cp deployment_package.zip s3://knowledgebasestack-deploymentbucketc91a09da-uee2lk6l86hw/deployment_package.zip
 
-# Update the runtime hosting via CLI
-aws bedrock-agentcore update-runtime \
-  --runtime-id YOUR_RUNTIME_ID \
-  --hosting-configuration '{"s3":{"bucket":"YOUR_DEPLOYMENT_BUCKET_NAME","key":"deployment_package.zip"}}'
+# Update the AgentCore runtime via CLI
+aws bedrock-agentcore-control update-agent-runtime \
+  --agent-runtime-id CitizensAdviceRuntime-38W3AU4Msk \
+  --agent-runtime-artifact '{
+    "codeConfiguration": {
+      "code": {
+        "s3": {
+          "bucket": "knowledgebasestack-deploymentbucketc91a09da-uee2lk6l86hw",
+          "prefix": "deployment_package.zip"
+        }
+      },
+      "runtime": "PYTHON_3_13",
+      "entryPoint": ["agent.py"]
+    }
+  }' \
+  --role-arn arn:aws:iam::732033934792:role/AgentStack-AgentCoreRuntimeRole32A8CA6E-gFVErgplUckg \
+  --network-configuration '{"networkMode": "PUBLIC"}'
 ```
 
-**Alternative**: Update hosting via AWS Console → Bedrock → AgentCore → Runtimes → Select runtime → Update hosting
+**Note**: Replace bucket name, runtime ID, and role ARN with your actual values from CloudFormation outputs.
 
 ## Project Structure
 

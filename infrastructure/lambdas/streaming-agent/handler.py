@@ -2,6 +2,7 @@ import json
 import os
 import boto3
 import urllib3
+import ast
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from aws_lambda_powertools import Logger
@@ -90,31 +91,72 @@ def lambda_handler(event, context):
     response = bedrock_client.invoke_agent_runtime(
         agentRuntimeArn=agent_runtime_arn,
         runtimeSessionId=session_id,
-        payload=json.dumps({"prompt": prompt})
+        payload=json.dumps({"prompt": prompt}).encode()
     )
     
     # Stream response chunks to AppSync Events
     channel_name = f"chat/{session_id}"
-    response_body = response['response'].read().decode('utf-8')
-    response_data = json.loads(response_body)
     
-    # Publish start event
-    publish_to_appsync(channel_name, {
-        "type": "start",
-        "sessionId": session_id
-    })
-    
-    # Publish response content
-    publish_to_appsync(channel_name, {
-        "type": "content",
-        "sessionId": session_id,
-        "content": response_data
-    })
-    
-    # Publish end event
-    publish_to_appsync(channel_name, {
-        "type": "end",
-        "sessionId": session_id
-    })
-    
-    logger.info(f"Successfully streamed response for session: {session_id}")
+    # Check if response is streaming
+    if "text/event-stream" in response.get("contentType", ""):
+        logger.info("Processing streaming response")
+        
+        # Process streaming events
+        event_count = 0
+        for line in response["response"].iter_lines(chunk_size=10):
+            if line:
+                line = line.decode("utf-8")
+                logger.info(f"Received line: {line}")
+                
+                # Parse SSE format (lines start with "data: ")
+                if line.startswith("data: "):
+                    event_json = line[6:]  # Remove "data: " prefix
+                    try:
+                        event_data = json.loads(event_json)
+                        
+                        # Extract text from AgentCore event format
+                        if isinstance(event_data, dict) and "event" in event_data:
+                            event = event_data["event"]
+                            
+                            # Check for contentBlockDelta with text
+                            if "contentBlockDelta" in event:
+                                delta = event["contentBlockDelta"].get("delta", {})
+                                if "text" in delta:
+                                    event_count += 1
+                                    publish_to_appsync(channel_name, {
+                                        "type": "content",
+                                        "sessionId": session_id,
+                                        "text": delta["text"]
+                                    })
+                            
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse event JSON: {e}, line: {event_json}")
+        
+        logger.info(f"Successfully streamed {event_count} content events for session: {session_id}")
+        
+    else:
+        # Handle non-streaming response (fallback)
+        logger.info("Processing non-streaming response")
+        response_body = response['response'].read().decode('utf-8')
+        response_data = json.loads(response_body)
+        
+        # Publish start event
+        publish_to_appsync(channel_name, {
+            "type": "start",
+            "sessionId": session_id
+        })
+        
+        # Publish response content
+        publish_to_appsync(channel_name, {
+            "type": "content",
+            "sessionId": session_id,
+            "content": response_data
+        })
+        
+        # Publish end event
+        publish_to_appsync(channel_name, {
+            "type": "end",
+            "sessionId": session_id
+        })
+        
+        logger.info(f"Successfully published non-streaming response for session: {session_id}")
