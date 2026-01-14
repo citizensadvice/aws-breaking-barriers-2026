@@ -27,12 +27,27 @@ import { isValidLocation, getValidLocationsString } from '../../shared/types';
  */
 export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
   try {
+    const method = event.httpMethod;
+
+    // Handle OPTIONS preflight request
+    if (method === 'OPTIONS') {
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+          'Access-Control-Max-Age': '86400',
+        },
+        body: '',
+      };
+    }
+
     const user = extractUserContext(event);
     if (!user) {
       return createErrorResponse('UNAUTHORIZED', 'Authentication required', 401);
     }
 
-    const method = event.httpMethod;
     const documentId = event.pathParameters?.id;
 
     switch (method) {
