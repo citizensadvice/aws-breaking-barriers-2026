@@ -21,7 +21,7 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
     location: '',
     category: '',
     expiryDate: undefined,
-    title: '',
+    sensitivity: 3, // Default to medium sensitivity
     applyToAll: true,
     ...initialMetadata
   });
@@ -82,10 +82,11 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
     }));
   }, []);
 
-  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSensitivityChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = parseInt(e.target.value, 10);
     setMetadata(prev => ({
       ...prev,
-      title: e.target.value
+      sensitivity: value
     }));
   }, []);
 
@@ -240,22 +241,38 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
           </div>
         </div>
 
-        {/* Title Field (Optional) */}
+        {/* Sensitivity Field (Optional) */}
         <div className="metadata-form__field">
-          <label htmlFor="title" className="metadata-form__label">
-            Custom Title
+          <label htmlFor="sensitivity" className="metadata-form__label">
+            Sensitivity Level
+            <HelpIcon 
+              content="Set the sensitivity level for this document. 1 = Low sensitivity, 5 = High sensitivity. Default is 3 (Medium)."
+              position="right"
+            />
           </label>
-          <input
-            id="title"
-            type="text"
-            value={metadata.title}
-            onChange={handleTitleChange}
+          <select
+            id="sensitivity"
+            value={metadata.sensitivity || 3}
+            onChange={handleSensitivityChange}
             disabled={disabled}
-            className="metadata-form__input"
-            placeholder="Optional: Custom title for the document"
-          />
+            className={`metadata-form__select ${
+              getFieldError('sensitivity') ? 'metadata-form__input--error' : ''
+            }`}
+            aria-describedby={getFieldError('sensitivity') ? 'sensitivity-error' : undefined}
+          >
+            <option value="1">1 - Low Sensitivity</option>
+            <option value="2">2 - Below Medium</option>
+            <option value="3">3 - Medium (Default)</option>
+            <option value="4">4 - Above Medium</option>
+            <option value="5">5 - High Sensitivity</option>
+          </select>
+          {getFieldError('sensitivity') && (
+            <div id="sensitivity-error" className="metadata-form__error" role="alert">
+              {getFieldError('sensitivity')}
+            </div>
+          )}
           <div className="metadata-form__field-help">
-            Leave blank to use the original filename
+            Optional: Indicates how sensitive or confidential this document is
           </div>
         </div>
       </div>

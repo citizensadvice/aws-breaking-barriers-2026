@@ -3,7 +3,6 @@ import MetadataForm from './MetadataForm';
 import IndividualMetadataForm from './IndividualMetadataForm';
 import { 
   DocumentMetadata, 
-  MetadataValidationResult,
   validateMetadata 
 } from '../../types/metadata';
 import './MetadataManager.css';
@@ -33,7 +32,7 @@ const MetadataManager: React.FC<MetadataManagerProps> = ({
     location: '',
     category: '',
     expiryDate: undefined,
-    title: '',
+    sensitivity: 3,
     applyToAll: true
   });
 
@@ -50,7 +49,7 @@ const MetadataManager: React.FC<MetadataManagerProps> = ({
           location: '',
           category: '',
           expiryDate: undefined,
-          title: file.name.split('.').slice(0, -1).join('.'),
+          sensitivity: 3,
           applyToAll: false
         },
         isValid: false

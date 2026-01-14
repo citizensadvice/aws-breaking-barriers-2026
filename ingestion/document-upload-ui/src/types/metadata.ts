@@ -2,8 +2,7 @@ export interface DocumentMetadata {
   location: string;
   category?: string;
   expiryDate?: Date;
-  title?: string;
-  sensitivity?: number; // 1-5 sensitivity ranking (1=low, 5=high)
+  sensitivity?: number; // 1-5 sensitivity ranking (1=low, 5=high), default: 3
   applyToAll?: boolean; // for bulk uploads
 }
 
@@ -56,6 +55,14 @@ export const validateMetadata = (metadata: DocumentMetadata): MetadataValidation
     errors.push({
       field: 'expiryDate',
       message: 'Expiry date must be in the future'
+    });
+  }
+
+  // Sensitivity must be between 1 and 5 if provided
+  if (metadata.sensitivity !== undefined && (metadata.sensitivity < 1 || metadata.sensitivity > 5)) {
+    errors.push({
+      field: 'sensitivity',
+      message: 'Sensitivity must be between 1 and 5'
     });
   }
 

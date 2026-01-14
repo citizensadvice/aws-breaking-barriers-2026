@@ -38,7 +38,7 @@ const UploadPage: React.FC = () => {
     location: '',
     category: '',
     expiryDate: undefined,
-    title: '',
+    sensitivity: 3,
     applyToAll: true
   });
   const [isMetadataValid, setIsMetadataValid] = useState(false);
@@ -84,7 +84,7 @@ const UploadPage: React.FC = () => {
         location: '',
         category: '',
         expiryDate: undefined,
-        title: title || ''
+        sensitivity: 3
       },
       status: 'pending'
     };
@@ -332,7 +332,7 @@ const UploadPage: React.FC = () => {
           location: '',
           category: '',
           expiryDate: undefined,
-          title: '',
+          sensitivity: 3,
           applyToAll: true
         });
       }, 3000);

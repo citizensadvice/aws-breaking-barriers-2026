@@ -30,7 +30,7 @@ const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
     location: '',
     category: '',
     expiryDate: undefined,
-    title: file.name.split('.').slice(0, -1).join('.'), // Default to filename without extension
+    sensitivity: 3, // Default to medium sensitivity
     ...initialMetadata
   });
 
@@ -90,10 +90,11 @@ const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
     }));
   }, []);
 
-  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSensitivityChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = parseInt(e.target.value, 10);
     setMetadata(prev => ({
       ...prev,
-      title: e.target.value
+      sensitivity: value
     }));
   }, []);
 
@@ -225,20 +226,32 @@ const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
           )}
         </div>
 
-        {/* Title Field (Optional) */}
+        {/* Sensitivity Field (Optional) */}
         <div className="individual-metadata-form__field">
-          <label htmlFor={`title-${fileIndex}`} className="individual-metadata-form__label">
-            Custom Title
+          <label htmlFor={`sensitivity-${fileIndex}`} className="individual-metadata-form__label">
+            Sensitivity Level
           </label>
-          <input
-            id={`title-${fileIndex}`}
-            type="text"
-            value={metadata.title}
-            onChange={handleTitleChange}
+          <select
+            id={`sensitivity-${fileIndex}`}
+            value={metadata.sensitivity || 3}
+            onChange={handleSensitivityChange}
             disabled={disabled}
-            className="individual-metadata-form__input"
-            placeholder="Custom title for the document"
-          />
+            className={`individual-metadata-form__select ${
+              getFieldError('sensitivity') ? 'individual-metadata-form__input--error' : ''
+            }`}
+            aria-describedby={getFieldError('sensitivity') ? `sensitivity-error-${fileIndex}` : undefined}
+          >
+            <option value="1">1 - Low Sensitivity</option>
+            <option value="2">2 - Below Medium</option>
+            <option value="3">3 - Medium (Default)</option>
+            <option value="4">4 - Above Medium</option>
+            <option value="5">5 - High Sensitivity</option>
+          </select>
+          {getFieldError('sensitivity') && (
+            <div id={`sensitivity-error-${fileIndex}`} className="individual-metadata-form__error" role="alert">
+              {getFieldError('sensitivity')}
+            </div>
+          )}
         </div>
       </div>
 

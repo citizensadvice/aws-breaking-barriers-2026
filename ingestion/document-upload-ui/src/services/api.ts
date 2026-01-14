@@ -377,8 +377,8 @@ export class DocumentAPIClient {
       formData.append('expiryDate', metadata.expiryDate.toISOString());
     }
     
-    if (metadata.title) {
-      formData.append('title', metadata.title);
+    if (metadata.sensitivity) {
+      formData.append('sensitivity', metadata.sensitivity.toString());
     }
 
     const abortController = new AbortController();
