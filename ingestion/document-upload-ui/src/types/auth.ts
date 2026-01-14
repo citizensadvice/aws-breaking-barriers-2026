@@ -2,6 +2,7 @@ export interface CognitoUser {
   username: string;
   email: string;
   organization: string;
+  location: string;
   accessToken: string;
   refreshToken: string;
   idToken: string;

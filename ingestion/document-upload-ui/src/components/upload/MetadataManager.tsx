@@ -13,6 +13,7 @@ interface MetadataManagerProps {
   onValidationChange: (isValid: boolean) => void;
   disabled?: boolean;
   className?: string;
+  userLocation?: string;
 }
 
 interface FileMetadata {
@@ -26,10 +27,11 @@ const MetadataManager: React.FC<MetadataManagerProps> = ({
   onMetadataChange,
   onValidationChange,
   disabled = false,
-  className = ''
+  className = '',
+  userLocation
 }) => {
   const [bulkMetadata, setBulkMetadata] = useState<DocumentMetadata>({
-    location: '',
+    location: userLocation || '',
     category: '',
     expiryDate: undefined,
     sensitivity: 3,
@@ -46,7 +48,7 @@ const MetadataManager: React.FC<MetadataManagerProps> = ({
       const newIndividualMetadata: FileMetadata[] = files.map((file, index) => ({
         fileIndex: index,
         metadata: {
-          location: '',
+          location: userLocation || '',
           category: '',
           expiryDate: undefined,
           sensitivity: 3,
@@ -57,7 +59,7 @@ const MetadataManager: React.FC<MetadataManagerProps> = ({
       setIndividualMetadata(newIndividualMetadata);
       setCurrentFileIndex(0);
     }
-  }, [files]);
+  }, [files, userLocation]);
 
   // Handle bulk metadata changes
   const handleBulkMetadataChange = useCallback((metadata: DocumentMetadata) => {
@@ -145,6 +147,7 @@ const MetadataManager: React.FC<MetadataManagerProps> = ({
           allowBulkMetadata={isMultipleFiles}
           initialMetadata={bulkMetadata}
           disabled={disabled}
+          userLocation={userLocation}
         />
       ) : (
         // Individual metadata forms
@@ -269,6 +272,7 @@ const MetadataManager: React.FC<MetadataManagerProps> = ({
               onMetadataChange={handleIndividualMetadataChange}
               initialMetadata={currentIndividualMetadata.metadata}
               disabled={disabled}
+              userLocation={userLocation}
             />
           )}
 

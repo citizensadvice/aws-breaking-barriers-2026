@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { Amplify } from 'aws-amplify';
-import { signIn, signOut, getCurrentUser, fetchAuthSession, confirmSignIn } from 'aws-amplify/auth';
+import { signIn, signOut, getCurrentUser, fetchAuthSession, confirmSignIn, fetchUserAttributes } from 'aws-amplify/auth';
 import { AuthContextValue, AuthState, AuthError, CognitoUser } from '../types/auth';
 
 // Auth reducer actions
@@ -102,22 +102,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Auth check - Session tokens present:', !!session.tokens);
       
       if (user && session.tokens) {
-        // Extract organization from user attributes if available
+        // Fetch user attributes separately in Amplify v6
+        let attributes: any = {};
+        try {
+          attributes = await fetchUserAttributes();
+          console.log('User attributes:', attributes);
+        } catch (attrError) {
+          console.warn('Could not fetch user attributes:', attrError);
+        }
+        
+        // Extract organization and location from user attributes
         const userAttributes = user.signInDetails?.loginId || '';
-        const organization = (user as any).attributes?.['custom:organization'] || 
-                           (user as any).attributes?.organization || 
+        const organization = attributes['custom:organization'] || 
+                           attributes['organization'] || 
                            '';
+        const location = attributes['custom:location'] || 
+                        attributes['location'] || 
+                        '';
         
         const cognitoUser: CognitoUser = {
           username: user.username,
           email: userAttributes || user.username,
           organization: organization,
+          location: location,
           accessToken: session.tokens.accessToken?.toString() || '',
           refreshToken: '', // Will be handled separately if needed
           idToken: session.tokens.idToken?.toString() || '',
         };
         
         console.log('Setting authenticated user:', cognitoUser.username);
+        console.log('User location:', cognitoUser.location);
         dispatch({ type: 'SET_USER', payload: cognitoUser });
       } else {
         console.log('No authenticated user found');

@@ -13,6 +13,7 @@ export interface MetadataFormProps {
   initialMetadata?: DocumentMetadata;
   disabled?: boolean;
   className?: string;
+  userLocation?: string;
 }
 
 export interface MetadataValidationError {

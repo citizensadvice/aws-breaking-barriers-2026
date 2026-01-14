@@ -15,6 +15,7 @@ interface IndividualMetadataFormProps {
   initialMetadata?: DocumentMetadata;
   disabled?: boolean;
   className?: string;
+  userLocation?: string;
 }
 
 const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
@@ -24,10 +25,11 @@ const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
   onMetadataChange,
   initialMetadata,
   disabled = false,
-  className = ''
+  className = '',
+  userLocation
 }) => {
   const [metadata, setMetadata] = useState<DocumentMetadata>({
-    location: '',
+    location: userLocation || '',
     category: '',
     expiryDate: undefined,
     sensitivity: 3, // Default to medium sensitivity
@@ -149,10 +151,10 @@ const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
             id={`location-${fileIndex}`}
             value={metadata.location}
             onChange={handleLocationChange}
-            disabled={disabled}
+            disabled={disabled || !!userLocation}
             className={`individual-metadata-form__input ${
               getFieldError('location') ? 'individual-metadata-form__input--error' : ''
-            }`}
+            } ${userLocation ? 'individual-metadata-form__input--disabled' : ''}`}
             aria-describedby={getFieldError('location') ? `location-error-${fileIndex}` : undefined}
             required
           >
@@ -164,6 +166,11 @@ const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
           {getFieldError('location') && (
             <div id={`location-error-${fileIndex}`} className="individual-metadata-form__error" role="alert">
               {getFieldError('location')}
+            </div>
+          )}
+          {userLocation && (
+            <div className="individual-metadata-form__field-help">
+              This location is set by your account
             </div>
           )}
         </div>

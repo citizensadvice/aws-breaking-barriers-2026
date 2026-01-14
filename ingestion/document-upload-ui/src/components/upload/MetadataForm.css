@@ -103,6 +103,14 @@
   cursor: not-allowed;
 }
 
+.metadata-form__input--disabled,
+.metadata-form__select--disabled {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
 .metadata-form__input--error {
   border-color: #ef4444;
 }

@@ -15,10 +15,11 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
   allowBulkMetadata = true,
   initialMetadata,
   disabled = false,
-  className = ''
+  className = '',
+  userLocation
 }) => {
   const [metadata, setMetadata] = useState<DocumentMetadata>({
-    location: '',
+    location: userLocation || '',
     category: '',
     expiryDate: undefined,
     sensitivity: 3, // Default to medium sensitivity
@@ -145,7 +146,7 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
           <label htmlFor="location" className="metadata-form__label metadata-form__label--required">
             Location
             <HelpIcon 
-              content="Select the location where this document applies."
+              content={userLocation ? "Your location is set by your account and cannot be changed." : "Select the location where this document applies."}
               position="right"
             />
           </label>
@@ -153,10 +154,10 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
             id="location"
             value={metadata.location}
             onChange={handleLocationChange}
-            disabled={disabled}
+            disabled={disabled || !!userLocation}
             className={`metadata-form__input ${
               getFieldError('location') ? 'metadata-form__input--error' : ''
-            }`}
+            } ${userLocation ? 'metadata-form__input--disabled' : ''}`}
             aria-describedby={getFieldError('location') ? 'location-error' : undefined}
             required
           >
@@ -168,6 +169,11 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
           {getFieldError('location') && (
             <div id="location-error" className="metadata-form__error" role="alert">
               {getFieldError('location')}
+            </div>
+          )}
+          {userLocation && (
+            <div className="metadata-form__field-help">
+              This location is set by your account
             </div>
           )}
         </div>

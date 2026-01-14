@@ -46,6 +46,12 @@
   color: #666;
 }
 
+.user-location {
+  font-size: 0.85rem;
+  color: #1976d2;
+  font-weight: 500;
+}
+
 .user-actions {
   display: flex;
   align-items: center;

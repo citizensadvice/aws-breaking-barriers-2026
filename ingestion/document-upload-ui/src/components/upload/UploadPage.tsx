@@ -391,6 +391,14 @@ const UploadPage: React.FC = () => {
     return null;
   };
 
+  // Display location if available
+  const getUserLocation = () => {
+    if (user?.location && user.location.trim()) {
+      return user.location;
+    }
+    return null;
+  };
+
   const canUpload = (validationResult.valid || googleDocs.length > 0) && isMetadataValid && !isUploading && (selectedFiles.length > 0 || googleDocs.length > 0);
   const hasActiveUploads = uploadProgress.some(p => p.status === 'uploading');
   const totalItemsToUpload = validationResult.validFiles.length + googleDocs.length;
@@ -411,6 +419,11 @@ const UploadPage: React.FC = () => {
               {getOrganizationDisplay() && (
                 <span className="user-organization">
                   {getOrganizationDisplay()}
+                </span>
+              )}
+              {getUserLocation() && (
+                <span className="user-location">
+                  📍 {getUserLocation()}
                 </span>
               )}
             </div>
@@ -555,6 +568,7 @@ const UploadPage: React.FC = () => {
                   onMetadataChange={handleMetadataChange}
                   onValidationChange={handleMetadataValidationChange}
                   disabled={isUploading}
+                  userLocation={getUserLocation() || undefined}
                 />
               </section>
             )}
