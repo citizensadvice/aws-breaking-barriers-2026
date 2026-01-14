@@ -423,7 +423,7 @@ components:
 
     UploadDocumentRequest:
       type: object
-      required: [fileName, fileContent, metadata]
+      required: [fileName, metadata]
       properties:
         fileName:
           type: string
@@ -432,11 +432,16 @@ components:
         fileContent:
           type: string
           format: byte
-          description: Base64-encoded file content
+          description: Base64-encoded file content (required if no URL provided)
         googleDocsUrl:
           type: string
           format: uri
           description: Google Docs URL (alternative to fileContent)
+        webUrl:
+          type: string
+          format: uri
+          description: Web URL to HTML page or PDF file (alternative to fileContent)
+          example: "https://example.com/document.pdf"
         metadata:
           $ref: '#/components/schemas/DocumentMetadata'
 

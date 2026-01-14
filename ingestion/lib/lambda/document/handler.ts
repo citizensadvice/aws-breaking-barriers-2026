@@ -19,6 +19,7 @@ import {
 } from './document-service';
 import { createSuccessResponse, createErrorResponse, extractUserContext } from './utils';
 import { convertGoogleDoc, validateGoogleDocsUrl } from '../conversion/google-docs-service';
+import { fetchWebContent, validateWebUrl, isGoogleDocsUrl } from '../conversion/web-content-service';
 
 /**
  * Main handler for document operations
@@ -83,8 +84,8 @@ async function handleUpload(
       return createErrorResponse('BAD_REQUEST', 'File name is required', 400);
     }
 
-    if (!body.fileContent && !body.googleDocsUrl) {
-      return createErrorResponse('BAD_REQUEST', 'File content or Google Docs URL is required', 400);
+    if (!body.fileContent && !body.googleDocsUrl && !body.webUrl) {
+      return createErrorResponse('BAD_REQUEST', 'File content, Google Docs URL, or web URL is required', 400);
     }
 
     if (!body.metadata) {
@@ -168,6 +169,45 @@ async function handleUpload(
         Bucket: bucketName,
         Key: conversionResult.convertedS3Key,
       }));
+    } else if (body.webUrl) {
+      // Handle web URL (HTML pages or PDF links)
+      
+      // Check if it's actually a Google Docs URL
+      if (isGoogleDocsUrl(body.webUrl)) {
+        return createErrorResponse('INVALID_WEB_URL', 'Use googleDocsUrl field for Google Docs links', 400);
+      }
+
+      // Validate web URL
+      const urlValidation = validateWebUrl(body.webUrl);
+      if (!urlValidation.isValid) {
+        return createErrorResponse('INVALID_WEB_URL', urlValidation.error || 'Invalid web URL', 400);
+      }
+
+      console.log('Fetching web content:', body.webUrl);
+      
+      try {
+        const webContent = await fetchWebContent(body.webUrl);
+        fileContent = webContent.content;
+
+        // Update filename based on content type
+        if (webContent.contentType === 'pdf') {
+          if (!fileName.toLowerCase().endsWith('.pdf')) {
+            fileName = fileName.replace(/\.[^/.]+$/, '.pdf') || `${fileName}.pdf`;
+          }
+        } else {
+          // HTML content - save as .txt for better KB indexing
+          if (!fileName.toLowerCase().endsWith('.txt') && !fileName.toLowerCase().endsWith('.html')) {
+            fileName = fileName.replace(/\.[^/.]+$/, '.txt') || `${fileName}.txt`;
+          }
+        }
+      } catch (error) {
+        console.error('Web content fetch error:', error);
+        return createErrorResponse(
+          'WEB_FETCH_FAILED',
+          error instanceof Error ? error.message : 'Failed to fetch web content',
+          400
+        );
+      }
     } else {
       fileContent = Buffer.from(body.fileContent, 'base64');
     }

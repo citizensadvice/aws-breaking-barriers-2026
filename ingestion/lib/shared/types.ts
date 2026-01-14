@@ -7,7 +7,7 @@
  * Supported file extensions for document upload
  * Requirements: 1.1, 1.2, 1.3
  */
-export const SUPPORTED_FILE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx'] as const;
+export const SUPPORTED_FILE_EXTENSIONS = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.txt', '.html'] as const;
 export type SupportedFileExtension = typeof SUPPORTED_FILE_EXTENSIONS[number];
 
 /**

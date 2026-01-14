@@ -10,8 +10,9 @@ import { DocumentMetadataInput, Document, DocumentSummary } from '../../shared/t
  */
 export interface UploadDocumentBody {
   fileName: string;
-  fileContent: string;  // Base64 encoded file content
+  fileContent?: string;  // Base64 encoded file content
   googleDocsUrl?: string;
+  webUrl?: string;  // URL to HTML page or PDF
   metadata: DocumentMetadataInput;
 }
 
