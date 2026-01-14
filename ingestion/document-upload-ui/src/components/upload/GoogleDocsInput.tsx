@@ -53,8 +53,21 @@ const GoogleDocsInput: React.FC<GoogleDocsInputProps> = ({
   }, [url]);
 
   const handleAdd = useCallback(() => {
-    if (!validationResult?.valid) {
-      handleValidate();
+    if (!url.trim()) {
+      setValidationResult({
+        valid: false,
+        error: 'Please enter a Google Docs URL'
+      });
+      setShowPreview(false);
+      return;
+    }
+
+    // Validate the URL first if not already validated
+    const result = validationResult?.valid ? validationResult : validateGoogleDocsUrl(url);
+    
+    if (!result.valid) {
+      setValidationResult(result);
+      setShowPreview(false);
       return;
     }
 
@@ -63,13 +76,13 @@ const GoogleDocsInput: React.FC<GoogleDocsInputProps> = ({
     const docType = extractDocumentType(url);
     const defaultTitle = docType ? `Google ${docType}` : 'Google Document';
     
-    onAddGoogleDoc(url, validationResult.title || defaultTitle);
+    onAddGoogleDoc(url, result.title || defaultTitle);
     
     // Reset form
     setUrl('');
     setValidationResult(null);
     setShowPreview(false);
-  }, [url, validationResult, onAddGoogleDoc, handleValidate]);
+  }, [url, validationResult, onAddGoogleDoc]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !disabled) {
