@@ -14,6 +14,7 @@ import {
   UpdateCommand 
 } from '@aws-sdk/lib-dynamodb';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { BedrockAgentClient, StartIngestionJobCommand } from '@aws-sdk/client-bedrock-agent';
 
 import { 
   Document, 
@@ -38,9 +39,12 @@ import {
 
 const s3Client = new S3Client({});
 const dynamoDBClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const bedrockAgentClient = new BedrockAgentClient({});
 
 const BUCKET_NAME = process.env.DOCUMENTS_BUCKET_NAME || '';
 const TABLE_NAME = process.env.DOCUMENTS_TABLE_NAME || '';
+const KNOWLEDGE_BASE_ID = process.env.KNOWLEDGE_BASE_ID || '';
+const DATA_SOURCE_ID = process.env.DATA_SOURCE_ID || '';
 const PRESIGNED_URL_EXPIRY = 3600; // 1 hour
 
 export interface CreateDocumentParams {
@@ -135,7 +139,33 @@ export async function createDocument(params: CreateDocumentParams): Promise<Docu
     Item: dynamoItem,
   }));
 
+  // Trigger Knowledge Base ingestion
+  await triggerKnowledgeBaseIngestion();
+
   return document;
+}
+
+/**
+ * Trigger Bedrock Knowledge Base ingestion job
+ * This syncs new documents to the Knowledge Base for semantic search
+ */
+async function triggerKnowledgeBaseIngestion(): Promise<void> {
+  if (!KNOWLEDGE_BASE_ID || !DATA_SOURCE_ID) {
+    console.warn('Knowledge Base ID or Data Source ID not configured, skipping ingestion');
+    return;
+  }
+
+  try {
+    console.log('Starting Knowledge Base ingestion job...');
+    const response = await bedrockAgentClient.send(new StartIngestionJobCommand({
+      knowledgeBaseId: KNOWLEDGE_BASE_ID,
+      dataSourceId: DATA_SOURCE_ID,
+    }));
+    console.log('Ingestion job started:', response.ingestionJob?.ingestionJobId);
+  } catch (error) {
+    // Log but don't fail the document creation if ingestion fails
+    console.error('Failed to start ingestion job:', error);
+  }
 }
 
 

@@ -1,6 +1,6 @@
 /**
  * Document Lambda Handler
- * Requirements: 1.1, 1.2, 2.1, 2.2, 2.5, 2.6, 2.7, 2.8, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
+ * Requirements: 1.1, 1.2, 1.4, 2.1, 2.2, 2.5, 2.6, 2.7, 2.8, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
  */
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
@@ -18,6 +18,7 @@ import {
   listDocuments,
 } from './document-service';
 import { createSuccessResponse, createErrorResponse, extractUserContext } from './utils';
+import { convertGoogleDoc, validateGoogleDocsUrl } from '../conversion/google-docs-service';
 
 /**
  * Main handler for document operations
@@ -65,7 +66,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
 /**
  * Handle document upload
- * Requirements: 1.1, 1.2, 2.1, 2.2, 2.5, 2.6, 2.7
+ * Requirements: 1.1, 1.2, 1.4, 2.1, 2.2, 2.5, 2.6, 2.7
  */
 async function handleUpload(
   event: APIGatewayProxyEvent,
@@ -82,8 +83,8 @@ async function handleUpload(
       return createErrorResponse('BAD_REQUEST', 'File name is required', 400);
     }
 
-    if (!body.fileContent) {
-      return createErrorResponse('BAD_REQUEST', 'File content is required', 400);
+    if (!body.fileContent && !body.googleDocsUrl) {
+      return createErrorResponse('BAD_REQUEST', 'File content or Google Docs URL is required', 400);
     }
 
     if (!body.metadata) {
@@ -105,10 +106,74 @@ async function handleUpload(
       }
     }
 
-    const fileContent = Buffer.from(body.fileContent, 'base64');
+    let fileContent: Buffer;
+    let fileName = body.fileName;
+
+    // Handle Google Docs URL conversion
+    if (body.googleDocsUrl) {
+      // Validate Google Docs URL
+      const urlValidation = validateGoogleDocsUrl(body.googleDocsUrl);
+      if (!urlValidation.isValid) {
+        return createErrorResponse('INVALID_GOOGLE_DOCS_URL', urlValidation.error || 'Invalid Google Docs URL', 400);
+      }
+
+      // Fetch and convert Google Doc to PDF
+      console.log('Converting Google Doc:', body.googleDocsUrl);
+      
+      // Use a temporary document ID for conversion
+      const tempDocId = `temp-${Date.now()}`;
+      const conversionResult = await convertGoogleDoc({
+        documentId: tempDocId,
+        sourceType: 'google-docs',
+        sourceUrl: body.googleDocsUrl,
+        organizationId: user.organizationId,
+        userId: user.userId,
+        fileName: body.fileName,
+      });
+
+      if (conversionResult.status === 'failed') {
+        return createErrorResponse(
+          'GOOGLE_DOCS_CONVERSION_FAILED',
+          conversionResult.errorMessage || 'Failed to convert Google Doc',
+          400
+        );
+      }
+
+      // For Google Docs, we need to fetch the converted content
+      // The convertGoogleDoc function already uploads to S3, so we need to adjust the flow
+      // For now, let's fetch the PDF content directly
+      const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
+      const s3Client = new S3Client({});
+      const bucketName = process.env.DOCUMENTS_BUCKET_NAME || '';
+      
+      const s3Response = await s3Client.send(new GetObjectCommand({
+        Bucket: bucketName,
+        Key: conversionResult.convertedS3Key,
+      }));
+
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of s3Response.Body as any) {
+        chunks.push(chunk);
+      }
+      fileContent = Buffer.concat(chunks);
+
+      // Update filename to reflect PDF conversion
+      if (!fileName.toLowerCase().endsWith('.pdf')) {
+        fileName = fileName.replace(/\.[^/.]+$/, '.pdf') || `${fileName}.pdf`;
+      }
+
+      // Delete the temporary file created by conversion
+      const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: conversionResult.convertedS3Key,
+      }));
+    } else {
+      fileContent = Buffer.from(body.fileContent, 'base64');
+    }
 
     const document = await createDocument({
-      fileName: body.fileName,
+      fileName,
       fileContent,
       metadata: body.metadata,
       user,
@@ -130,6 +195,12 @@ async function handleUpload(
       }
       if (error.message.includes('Sensitivity')) {
         return createErrorResponse('INVALID_SENSITIVITY', error.message, 400);
+      }
+      if (error.message.includes('ACCESS_DENIED')) {
+        return createErrorResponse('GOOGLE_DOCS_ACCESS_DENIED', 'Unable to access Google Doc. Make sure the document is publicly accessible.', 403);
+      }
+      if (error.message.includes('NOT_FOUND')) {
+        return createErrorResponse('GOOGLE_DOCS_NOT_FOUND', 'Google Doc not found. Please check the URL.', 404);
       }
     }
 

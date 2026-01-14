@@ -246,6 +246,8 @@ export class DocumentManagementStack extends cdk.Stack {
       ],
       resources: [
         `arn:aws:bedrock:${this.region}::foundation-model/amazon.titan-embed-text-v2:0`,
+        // Claude model for semantic chunking
+        `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
       ],
     }));
 
@@ -389,17 +391,10 @@ export class DocumentManagementStack extends cdk.Stack {
       },
       vectorIngestionConfiguration: {
         chunkingConfiguration: {
-          chunkingStrategy: 'SEMANTIC',
-          semanticChunkingConfiguration: {
+          chunkingStrategy: 'FIXED_SIZE',
+          fixedSizeChunkingConfiguration: {
             maxTokens: 300,
-            bufferSize: 0,
-            breakpointPercentileThreshold: 95,
-          },
-        },
-        parsingConfiguration: {
-          parsingStrategy: 'BEDROCK_FOUNDATION_MODEL',
-          bedrockFoundationModelConfiguration: {
-            modelArn: `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
+            overlapPercentage: 20,
           },
         },
       },
