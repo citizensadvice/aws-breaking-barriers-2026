@@ -1,9 +1,16 @@
 # agent.py
+import logging
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent, tool
 from strands.models import BedrockModel
 import boto3
 import os
+
+# Configure the root strands logger
+logging.getLogger("strands").setLevel(logging.DEBUG)
+# Add a handler to see the logs
+logging.basicConfig(format="%(levelname)s | %(name)s | %(message)s",
+                   handlers=[logging.StreamHandler()])
 
 app = BedrockAgentCoreApp()
 
@@ -40,8 +47,9 @@ def kb_search(query: str, kb_id: str, local_council: str = None) -> str:
     # Build metadata filters
     filters = {}
     
-    if local_council:
-        filters["local_council"] = {"equals": local_council}
+    # Temporarily disable metadata filtering to test KB retrieval
+    # if local_council:
+    #     filters["local_council"] = {"equals": local_council}
     
     try:
         # Call Bedrock Knowledge Base with filters
@@ -85,19 +93,20 @@ agent = Agent(
     model=model,
     system_prompt=f"""You are assisting a UK Citizens Advice agent. Your role is to help gather information about users who are seeking advice on various issues including housing, benefits, debt, employment, consumer rights, and legal matters.
 
-When interacting with users:
-- Gather key details like location, circumstances, and urgency
-- Be empathetic and supportive in your approach
-- Help identify what type of advice or support they need
-- Collect information that would help a Citizens Advice advisor provide the best assistance
+    When interacting with users:
+    - Gather key details like location, circumstances, and urgency
+    - Be empathetic and supportive in your approach
+    - Help identify what type of advice or support they need
+    - Collect information that would help a Citizens Advice advisor provide the best assistance
 
-Once you have collected the necessary information, search the knowledge base using the kb_search tool:
-- For national-level advice (general UK policies, benefits, rights), use NATIONAL_KB: "{NATIONAL_KB}"
-- For local council services and information, use LOCAL_KB: "{LOCAL_KB}" with the local_council parameter
-- Available local councils: {LOCAL_COUNCILS}
+    Once you have collected the necessary information, search the knowledge base using the kb_search tool:
+    - For national-level advice (general UK policies, benefits, rights), use NATIONAL_KB: "{NATIONAL_KB}"
+    - For local council services and information, use LOCAL_KB: "{LOCAL_KB}" with the local_council parameter
+    - Available local councils: {LOCAL_COUNCILS}
 
-Always maintain a helpful, professional, and caring tone while gathering the necessary information to connect users with appropriate resources and guidance.
-"""
+    Always maintain a helpful, professional, and caring tone while gathering the necessary information to connect users with appropriate resources and guidance.
+    """,
+    tools=[kb_search]
 )
 
 @app.entrypoint

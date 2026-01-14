@@ -201,3 +201,8 @@ class KnowledgeBaseStack(Stack):
             value=local_kb.attr_knowledge_base_id,
             description="Local Knowledge Base ID"
         )
+
+        # Export resources for other stacks
+        self.deployment_bucket = deployment_bucket
+        self.national_kb = national_kb
+        self.local_kb = local_kb

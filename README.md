@@ -43,11 +43,17 @@ Multi-agent system for UK Citizens Advice using AWS Bedrock AgentCore, Knowledge
 3. **Deploy Infrastructure**
    ```bash
    cd ../infrastructure
+   
+   # Synthesize to check for errors
+   uv run cdk synth
+   
+   # Deploy all three stacks
    uv run cdk deploy --all
    ```
    This deploys:
-   - OpenSearchStack: Collections, indexes, IAM roles
-   - KnowledgeBaseStack: S3 buckets, Knowledge Bases, data sources
+   - **OpenSearchStack**: Collections, indexes, IAM roles (deploys first)
+   - **KnowledgeBaseStack**: S3 buckets, Knowledge Bases, data sources
+   - **AgentStack**: AgentCore runtime with environment variables
 
 4. **Upload Documents**
    - Upload national documents to `NationalDataBucket`
@@ -80,14 +86,37 @@ Per [reference](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/ru
    aws s3 cp deployment_package.zip s3://YOUR_DEPLOYMENT_BUCKET_NAME/
    ```
 
+## Updating Agent Code
+
+Whenever you make changes to `agents/caddy/agent.py`, you must rebuild and redeploy:
+
+```bash
+cd agents/caddy
+
+# Rebuild deployment package with updated agent.py
+cd deployment_package && zip -r ../deployment_package.zip . && cd ..
+zip deployment_package.zip agent.py
+
+# Upload to S3 deployment bucket
+aws s3 cp deployment_package.zip s3://YOUR_DEPLOYMENT_BUCKET_NAME/deployment_package.zip
+
+# Update the runtime hosting via CLI
+aws bedrock-agentcore update-runtime \
+  --runtime-id YOUR_RUNTIME_ID \
+  --hosting-configuration '{"s3":{"bucket":"YOUR_DEPLOYMENT_BUCKET_NAME","key":"deployment_package.zip"}}'
+```
+
+**Alternative**: Update hosting via AWS Console → Bedrock → AgentCore → Runtimes → Select runtime → Update hosting
+
 ## Project Structure
 
 ```
 ├── infrastructure/          # CDK stacks
 │   ├── stacks/
 │   │   ├── opensearch_stack.py      # OpenSearch collections & indexes
-│   │   └── knowledge_base_stack.py  # S3 buckets & Knowledge Bases
-│   └── app.py              # Two-stack deployment
+│   │   ├── knowledge_base_stack.py  # S3 buckets & Knowledge Bases
+│   │   └── agent_stack.py           # AgentCore runtime
+│   └── app.py              # Three-stack deployment
 ├── agents/caddy/           # AgentCore agent
 ├── frontend/               # React frontend
 └── tests/                  # Test suites
