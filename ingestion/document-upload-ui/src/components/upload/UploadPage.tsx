@@ -328,6 +328,12 @@ const UploadPage: React.FC = () => {
         setGoogleDocs([]);
         setUploadFiles([]);
         setUploadProgress([]);
+        setValidationResult({
+          valid: false,
+          errors: [],
+          validFiles: [],
+          invalidFiles: []
+        });
         setMetadata({
           location: '',
           category: '',
