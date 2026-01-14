@@ -27,181 +27,6 @@ class FrontendStack(Stack):
             layer_version_arn=f"arn:aws:lambda:{self.region}:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-arm64:28"
         )
         
-        # ===== Streaming API Gateway with SQS Integration =====
-        
-        # Create REST API for streaming invocation
-        api = apigw.RestApi(
-            self, "StreamingAgentApi",
-            rest_api_name="Citizens Advice Streaming API",
-            description="Streaming invocation of Bedrock AgentCore Runtime via SQS",
-            default_cors_preflight_options=apigw.CorsOptions(
-                allow_origins=apigw.Cors.ALL_ORIGINS,
-                allow_methods=apigw.Cors.ALL_METHODS,
-                allow_headers=apigw.Cors.DEFAULT_HEADERS
-            )
-        )
-        
-        # Add /invoke resource
-        invoke_resource = api.root.add_resource("invoke")
-        
-        # ===== AppSync Events API for Streaming =====
-        
-        # Create AppSync Event API with IAM-only auth
-        iam_provider = appsync.AppSyncAuthProvider(
-            authorization_type=appsync.AppSyncAuthorizationType.IAM
-        )
-        
-        event_api = appsync.EventApi(
-            self, "AgentStreamingEventApi",
-            api_name="citizens-advice-streaming-events",
-            authorization_config=appsync.EventApiAuthConfig(
-                auth_providers=[iam_provider],
-                connection_auth_mode_types=[appsync.AppSyncAuthorizationType.IAM],
-                default_publish_auth_mode_types=[appsync.AppSyncAuthorizationType.IAM],
-                default_subscribe_auth_mode_types=[appsync.AppSyncAuthorizationType.IAM]
-            )
-        )
-        
-        # Add chat channel namespace for streaming responses
-        event_api.add_channel_namespace("chat")
-        
-        # ===== SQS Queue for Buffering =====
-        
-        # Create SQS queue for agent requests
-        agent_request_queue = sqs.Queue(
-            self, "AgentRequestQueue",
-            queue_name="citizens-advice-agent-requests",
-            visibility_timeout=Duration.seconds(300),  # Match Lambda timeout
-            retention_period=Duration.days(4)
-        )
-        
-        # ===== Streaming Lambda Function =====
-        
-        # Create Lambda role with Bedrock and AppSync permissions
-        streaming_lambda_role = iam.Role(
-            self, "StreamingLambdaRole",
-            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
-            managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
-            ]
-        )
-        
-        # Grant Bedrock AgentCore permissions
-        streaming_lambda_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["bedrock-agentcore:InvokeAgentRuntime"],
-                resources=[agent_runtime_arn, f"{agent_runtime_arn}/*"]
-            )
-        )
-        
-        # Grant AppSync Events permissions
-        streaming_lambda_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["appsync:EventPublish"],
-                resources=[f"{event_api.api_arn}/*"]
-            )
-        )
-        
-        # Create streaming Lambda function
-        streaming_lambda = lambda_.Function(
-            self, "StreamingAgentFunction",
-            runtime=lambda_.Runtime.PYTHON_3_13,
-            architecture=lambda_.Architecture.ARM_64,
-            handler="handler.lambda_handler",
-            code=lambda_.Code.from_asset("lambdas/streaming-agent"),
-            layers=[powertools_layer],
-            role=streaming_lambda_role,
-            timeout=Duration.seconds(300),
-            environment={
-                "AGENT_RUNTIME_ARN": agent_runtime_arn,
-                "EVENT_API_ENDPOINT": f"https://{event_api.http_dns}/event",
-                "POWERTOOLS_SERVICE_NAME": "streaming-agent",
-                "LOG_LEVEL": "INFO"
-            }
-        )
-        
-        # Add SQS as event source for Lambda
-        streaming_lambda.add_event_source(
-            lambda_event_sources.SqsEventSource(
-                agent_request_queue,
-                batch_size=1  # Process one message at a time
-            )
-        )
-        
-        # Create IAM role for API Gateway to send to SQS
-        apigw_sqs_role = iam.Role(
-            self, "ApiGatewaySqsRole",
-            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com")
-        )
-        
-        agent_request_queue.grant_send_messages(apigw_sqs_role)
-        
-        # Create AWS integration for SQS
-        sqs_integration = apigw.AwsIntegration(
-            service="sqs",
-            path=f"{self.account}/{agent_request_queue.queue_name}",
-            integration_http_method="POST",
-            options=apigw.IntegrationOptions(
-                credentials_role=apigw_sqs_role,
-                request_parameters={
-                    "integration.request.header.Content-Type": "'application/x-www-form-urlencoded'"
-                },
-                request_templates={
-                    "application/json": "Action=SendMessage&MessageBody=$input.body"
-                },
-                integration_responses=[
-                    apigw.IntegrationResponse(
-                        status_code="202",
-                        response_templates={
-                            "application/json": '{"message": "Request queued successfully"}'
-                        }
-                    )
-                ]
-            )
-        )
-        
-        # Update API to use SQS integration
-        invoke_resource.add_method(
-            "POST",
-            sqs_integration,
-            authorization_type=apigw.AuthorizationType.IAM,
-            method_responses=[
-                apigw.MethodResponse(status_code="202")
-            ]
-        )
-        
-        # Outputs for API Gateway
-        CfnOutput(
-            self, "ApiUrl",
-            value=api.url,
-            description="Streaming API Gateway endpoint URL"
-        )
-        
-        CfnOutput(
-            self, "InvokeEndpoint",
-            value=f"{api.url}invoke",
-            description="Streaming agent invocation endpoint"
-        )
-        
-        # Outputs for AppSync Events
-        CfnOutput(
-            self, "EventApiHttpEndpoint",
-            value=f"https://{event_api.http_dns}/event",
-            description="AppSync Events HTTP endpoint"
-        )
-        
-        CfnOutput(
-            self, "EventApiRealtimeEndpoint",
-            value=f"https://{event_api.realtime_dns}/event/realtime",
-            description="AppSync Events WebSocket endpoint for subscriptions"
-        )
-        
-        CfnOutput(
-            self, "AgentRequestQueueUrl",
-            value=agent_request_queue.queue_url,
-            description="SQS Queue URL for agent requests"
-        )
-        
         # ===== Cognito User Pool and Identity Pool =====
         
         # Create Cognito User Pool
@@ -267,34 +92,9 @@ class FrontendStack(Stack):
             )
         )
         
+        # ===== CloudFront Distribution (create early to get domain name) =====
         
-        # Grant API Gateway invoke permissions
-        authenticated_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["execute-api:Invoke"],
-                resources=[f"{api.arn_for_execute_api()}/*"]
-            )
-        )
-        
-        # Grant AppSync Events permissions
-        authenticated_role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["appsync:EventConnect", "appsync:EventSubscribe"],
-                resources=[f"{event_api.api_arn}/*"]
-            )
-        )
-        
-        # Attach role to identity pool
-        cognito.CfnIdentityPoolRoleAttachment(
-            self, "IdentityPoolRoleAttachment",
-            identity_pool_id=identity_pool.ref,
-            roles={
-                "authenticated": authenticated_role.role_arn
-            }
-        )
-        
-        # ===== S3 Bucket for Frontend Hosting =====
-        
+        # S3 Bucket for Frontend Hosting
         frontend_bucket = s3.Bucket(
             self, "FrontendBucket",
             bucket_name=f"citizens-advice-frontend-{self.account}-{self.region}",
@@ -302,8 +102,6 @@ class FrontendStack(Stack):
             auto_delete_objects=True,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL
         )
-        
-        # ===== CloudFront Distribution =====
         
         # Origin Access Control for CloudFront
         oac = cloudfront.CfnOriginAccessControl(
@@ -320,7 +118,7 @@ class FrontendStack(Stack):
         distribution = cloudfront.Distribution(
             self, "FrontendDistribution",
             default_behavior=cloudfront.BehaviorOptions(
-                origin=origins.S3Origin(frontend_bucket),
+                origin=origins.S3BucketOrigin(frontend_bucket),
                 viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                 allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
                 cached_methods=cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS
@@ -369,6 +167,239 @@ class FrontendStack(Stack):
                     }
                 }
             )
+        )
+        
+        # CloudFront origin for CORS
+        cloudfront_origin = f"https://{distribution.distribution_domain_name}"
+        
+        # ===== Streaming API Gateway with SQS Integration =====
+        
+        # Create Cognito authorizer for API Gateway
+        cognito_authorizer = apigw.CognitoUserPoolsAuthorizer(
+            self, "CognitoAuthorizer",
+            cognito_user_pools=[user_pool]
+        )
+        
+        # Create REST API for streaming invocation with CloudFront CORS
+        api = apigw.RestApi(
+            self, "StreamingAgentApi",
+            rest_api_name="Citizens Advice Streaming API",
+            description="Streaming invocation of Bedrock AgentCore Runtime via SQS",
+            default_cors_preflight_options=apigw.CorsOptions(
+                allow_origins=[cloudfront_origin],
+                allow_methods=apigw.Cors.ALL_METHODS,
+                allow_headers=apigw.Cors.DEFAULT_HEADERS,
+                allow_credentials=True
+            )
+        )
+        
+        # Add /invoke resource
+        invoke_resource = api.root.add_resource("invoke")
+        
+        # ===== AppSync Events API for Streaming =====
+        
+        # Create AppSync Event API with both IAM and Cognito auth
+        iam_provider = appsync.AppSyncAuthProvider(
+            authorization_type=appsync.AppSyncAuthorizationType.IAM
+        )
+        
+        cognito_provider = appsync.AppSyncAuthProvider(
+            authorization_type=appsync.AppSyncAuthorizationType.USER_POOL,
+            cognito_config=appsync.AppSyncCognitoConfig(
+                user_pool=user_pool
+            )
+        )
+        
+        event_api = appsync.EventApi(
+            self, "AgentStreamingEventApi",
+            api_name="citizens-advice-streaming-events",
+            authorization_config=appsync.EventApiAuthConfig(
+                auth_providers=[iam_provider, cognito_provider],
+                connection_auth_mode_types=[
+                    appsync.AppSyncAuthorizationType.IAM,
+                    appsync.AppSyncAuthorizationType.USER_POOL
+                ],
+                default_publish_auth_mode_types=[appsync.AppSyncAuthorizationType.IAM],
+                default_subscribe_auth_mode_types=[
+                    appsync.AppSyncAuthorizationType.IAM,
+                    appsync.AppSyncAuthorizationType.USER_POOL
+                ]
+            )
+        )
+        
+        # Add chat channel namespace for streaming responses
+        event_api.add_channel_namespace("chat")
+        
+        # ===== SQS Queue for Buffering =====
+        
+        # Create SQS queue for agent requests
+        agent_request_queue = sqs.Queue(
+            self, "AgentRequestQueue",
+            queue_name="citizens-advice-agent-requests",
+            visibility_timeout=Duration.seconds(300),  # Match Lambda timeout
+            retention_period=Duration.days(4)
+        )
+        
+        # ===== Streaming Lambda Function =====
+        
+        # Create Lambda role with Bedrock and AppSync permissions
+        streaming_lambda_role = iam.Role(
+            self, "StreamingLambdaRole",
+            assumed_by=iam.ServicePrincipal("lambda.amazonaws.com"),
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AWSLambdaBasicExecutionRole")
+            ]
+        )
+        
+        # Grant Bedrock AgentCore permissions
+        streaming_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock-agentcore:InvokeAgentRuntime"],
+                resources=[agent_runtime_arn, f"{agent_runtime_arn}/*"]
+            )
+        )
+        
+        # Grant AppSync Events permissions
+        streaming_lambda_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["appsync:EventPublish"],
+                resources=[f"{event_api.api_arn}/*"]
+            )
+        )
+        
+        # Create streaming Lambda function
+        streaming_lambda = lambda_.Function(
+            self, "StreamingAgentFunction",
+            runtime=lambda_.Runtime.PYTHON_3_13,
+            architecture=lambda_.Architecture.ARM_64,
+            handler="handler.lambda_handler",
+            code=lambda_.Code.from_asset("lambdas/streaming-agent"),
+            layers=[powertools_layer],
+            role=streaming_lambda_role,
+            timeout=Duration.seconds(300),
+            memory_size=2048,
+            environment={
+                "AGENT_RUNTIME_ARN": agent_runtime_arn,
+                "EVENT_API_ENDPOINT": f"https://{event_api.http_dns}/event",
+                "POWERTOOLS_SERVICE_NAME": "streaming-agent",
+                "LOG_LEVEL": "INFO"
+            }
+        )
+        
+        # Add SQS as event source for Lambda
+        streaming_lambda.add_event_source(
+            lambda_event_sources.SqsEventSource(
+                agent_request_queue,
+                batch_size=1  # Process one message at a time
+            )
+        )
+        
+        # Create IAM role for API Gateway to send to SQS
+        apigw_sqs_role = iam.Role(
+            self, "ApiGatewaySqsRole",
+            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com")
+        )
+        
+        agent_request_queue.grant_send_messages(apigw_sqs_role)
+        
+        # Create AWS integration for SQS
+        sqs_integration = apigw.AwsIntegration(
+            service="sqs",
+            path=f"{self.account}/{agent_request_queue.queue_name}",
+            integration_http_method="POST",
+            options=apigw.IntegrationOptions(
+                credentials_role=apigw_sqs_role,
+                request_parameters={
+                    "integration.request.header.Content-Type": "'application/x-www-form-urlencoded'"
+                },
+                request_templates={
+                    "application/json": "Action=SendMessage&MessageBody=$input.body"
+                },
+                integration_responses=[
+                    apigw.IntegrationResponse(
+                        status_code="202",
+                        response_templates={
+                            "application/json": '{"message": "Request queued successfully"}'
+                        },
+                        response_parameters={
+                            "method.response.header.Access-Control-Allow-Origin": f"'{cloudfront_origin}'"
+                        }
+                    )
+                ]
+            )
+        )
+        
+        # Update API to use SQS integration with Cognito auth
+        invoke_resource.add_method(
+            "POST",
+            sqs_integration,
+            authorizer=cognito_authorizer,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            method_responses=[
+                apigw.MethodResponse(
+                    status_code="202",
+                    response_parameters={
+                        "method.response.header.Access-Control-Allow-Origin": True
+                    }
+                )
+            ]
+        )
+        
+        # Outputs for API Gateway
+        CfnOutput(
+            self, "ApiUrl",
+            value=api.url,
+            description="Streaming API Gateway endpoint URL"
+        )
+        
+        CfnOutput(
+            self, "InvokeEndpoint",
+            value=f"{api.url}invoke",
+            description="Streaming agent invocation endpoint"
+        )
+        
+        # Outputs for AppSync Events
+        CfnOutput(
+            self, "EventApiHttpEndpoint",
+            value=f"https://{event_api.http_dns}/event",
+            description="AppSync Events HTTP endpoint"
+        )
+        
+        CfnOutput(
+            self, "EventApiRealtimeEndpoint",
+            value=f"https://{event_api.realtime_dns}/event/realtime",
+            description="AppSync Events WebSocket endpoint for subscriptions"
+        )
+        
+        CfnOutput(
+            self, "AgentRequestQueueUrl",
+            value=agent_request_queue.queue_url,
+            description="SQS Queue URL for agent requests"
+        )
+        
+        # Grant API Gateway invoke permissions to authenticated role
+        authenticated_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["execute-api:Invoke"],
+                resources=[f"{api.arn_for_execute_api()}/*"]
+            )
+        )
+        
+        # Grant AppSync Events permissions to authenticated role
+        authenticated_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["appsync:EventConnect", "appsync:EventSubscribe"],
+                resources=[f"{event_api.api_arn}/*"]
+            )
+        )
+        
+        # Attach role to identity pool
+        cognito.CfnIdentityPoolRoleAttachment(
+            self, "IdentityPoolRoleAttachment",
+            identity_pool_id=identity_pool.ref,
+            roles={
+                "authenticated": authenticated_role.role_arn
+            }
         )
         
         # ===== Outputs =====

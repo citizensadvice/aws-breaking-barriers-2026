@@ -18,7 +18,7 @@ Amplify.configure({
     Events: {
       endpoint: awsConfig.eventApiEndpoint,
       region: awsConfig.region,
-      defaultAuthMode: 'iam'
+      defaultAuthMode: 'userPool'
     }
   }
 });

@@ -17,14 +17,20 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  type?: 'tool_use';
 }
 
-export default function ChatPage() {
+interface ChatPageProps {
+  signOut?: () => void;
+  user?: any;
+}
+
+export default function ChatPage({ signOut }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+  const [sessionId] = useState(() => crypto.randomUUID().substring(0, 33));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<any>(null);
 
@@ -47,7 +53,7 @@ export default function ChatPage() {
             console.log('Received event:', data);
             
             try {
-              const event = JSON.parse(data.event);
+              const event = data.event;
               
               if (event.type === 'content') {
                 // Append text to the last assistant message
@@ -82,7 +88,8 @@ export default function ChatPage() {
                     id: `tool-${Date.now()}`,
                     role: 'assistant',
                     content: event.text,
-                    timestamp: new Date()
+                    timestamp: new Date(),
+                    type: 'tool_use'
                   }
                 ]);
               }
@@ -138,7 +145,7 @@ export default function ChatPage() {
       }
 
       // Send message to API Gateway (which queues to SQS)
-      const response = await fetch(awsConfig.api.invokeEndpoint, {
+      const response = await fetch(awsConfig.apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +174,12 @@ export default function ChatPage() {
   return (
     <Container
       header={
-        <Header variant="h1">
+        <Header 
+          variant="h1"
+          actions={
+            <Button onClick={signOut}>Sign Out</Button>
+          }
+        >
           Chat with Citizens Advice Assistant
         </Header>
       }
@@ -200,36 +212,55 @@ export default function ChatPage() {
                 style={{
                   marginBottom: '16px',
                   padding: '12px',
-                  backgroundColor: message.role === 'user' ? '#e3f2fd' : '#ffffff',
+                  backgroundColor: message.type === 'tool_use' 
+                    ? '#f3e5f5' 
+                    : message.role === 'user' 
+                      ? '#e3f2fd' 
+                      : '#ffffff',
                   borderRadius: '8px',
                   maxWidth: '80%',
                   marginLeft: message.role === 'user' ? 'auto' : '0',
-                  marginRight: message.role === 'user' ? '0' : 'auto'
+                  marginRight: message.role === 'user' ? '0' : 'auto',
+                  borderLeft: message.type === 'tool_use' ? '4px solid #9c27b0' : 'none'
                 }}
               >
-                <Box fontWeight="bold" marginBottom="xs">
+                <Box fontWeight="bold" margin={{ bottom: 'xs' }}>
                   {message.role === 'user' ? 'You' : 'Assistant'}
                 </Box>
-                <Box>{message.content}</Box>
+                <Box>
+                  {message.content.split('\n').map((line, i) => (
+                    <span key={i}>
+                      {line.split(/(\*\*.*?\*\*)/).map((part, j) => 
+                        part.startsWith('**') && part.endsWith('**') ? (
+                          <strong key={j}>{part.slice(2, -2)}</strong>
+                        ) : (
+                          <span key={j}>{part}</span>
+                        )
+                      )}
+                      {i < message.content.split('\n').length - 1 && <br />}
+                    </span>
+                  ))}
+                </Box>
               </div>
             ))}
             <div ref={messagesEndRef} />
           </div>
         </Box>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Input
-            value={input}
-            onChange={({ detail }) => setInput(detail.value)}
-            onKeyDown={(e) => {
-              if (e.detail.key === 'Enter' && !loading) {
-                sendMessage();
-              }
-            }}
-            placeholder="Type your message..."
-            disabled={loading}
-            style={{ flex: 1 }}
-          />
+        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+          <div style={{ flexGrow: 1 }}>
+            <Input
+              value={input}
+              onChange={({ detail }) => setInput(detail.value)}
+              onKeyDown={(e) => {
+                if (e.detail.key === 'Enter' && !loading) {
+                  sendMessage();
+                }
+              }}
+              placeholder="Type your message..."
+              disabled={loading}
+            />
+          </div>
           <Button
             variant="primary"
             onClick={sendMessage}

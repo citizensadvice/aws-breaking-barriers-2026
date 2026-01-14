@@ -137,7 +137,7 @@ def lambda_handler(event, context):
                                         publish_to_appsync(channel_name, {
                                             "type": "tool_use",
                                             "sessionId": session_id,
-                                            "text": f"🔧 Using tool: {tool_name}"
+                                            "text": f"\n\n🔧 Using tool: {tool_name}\n\n"
                                         })
                             
                     except json.JSONDecodeError as e:
