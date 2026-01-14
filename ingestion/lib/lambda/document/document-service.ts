@@ -94,7 +94,7 @@ export async function createDocument(params: CreateDocumentParams): Promise<Docu
   const documentId = generateDocumentId();
   const timestamp = getCurrentTimestamp();
   const fileExtension = extractFileExtension(fileName) || '';
-  const s3Key = generateS3Key(user.organizationId, documentId, fileName);
+  const s3Key = generateS3Key(metadata.location, documentId, fileName);
 
   // Create document record
   const document: Document = {
@@ -123,7 +123,7 @@ export async function createDocument(params: CreateDocumentParams): Promise<Docu
   }));
 
   // Create Bedrock metadata file
-  const metadataS3Key = generateMetadataS3Key(user.organizationId, documentId);
+  const metadataS3Key = generateMetadataS3Key(metadata.location, documentId);
   const bedrockMetadata = createBedrockMetadata(document);
   await s3Client.send(new PutObjectCommand({
     Bucket: BUCKET_NAME,
@@ -250,7 +250,9 @@ export async function updateDocument(params: UpdateDocumentParams): Promise<Docu
 
     newFileName = fileName;
     newFileExtension = extractFileExtension(fileName) || '';
-    newS3Key = generateS3Key(user.organizationId, documentId, fileName);
+    // Use existing location or updated location for S3 key
+    const locationForKey = metadata?.location ?? existingDoc.location;
+    newS3Key = generateS3Key(locationForKey, documentId, fileName);
 
     // Delete old file if key changed
     if (newS3Key !== existingDoc.s3Key) {
@@ -298,7 +300,7 @@ export async function updateDocument(params: UpdateDocumentParams): Promise<Docu
   };
 
   // Update Bedrock metadata file
-  const metadataS3Key = generateMetadataS3Key(user.organizationId, documentId);
+  const metadataS3Key = generateMetadataS3Key(updatedDoc.location, documentId);
   const bedrockMetadata = createBedrockMetadata(updatedDoc);
   await s3Client.send(new PutObjectCommand({
     Bucket: BUCKET_NAME,
@@ -350,7 +352,7 @@ export async function deleteDocument(documentId: string, user: UserContext): Pro
   }));
 
   // Delete metadata file from S3
-  const metadataS3Key = generateMetadataS3Key(document.organizationId, documentId);
+  const metadataS3Key = generateMetadataS3Key(document.location, documentId);
   await s3Client.send(new DeleteObjectCommand({
     Bucket: BUCKET_NAME,
     Key: metadataS3Key,

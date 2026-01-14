@@ -14,7 +14,7 @@ import { Construct } from 'constructs';
 import * as path from 'path';
 
 export class DocumentManagementStack extends cdk.Stack {
-  public readonly documentsBucket: s3.Bucket;
+  public readonly documentsBucket: s3.IBucket;
   public readonly documentsTable: dynamodb.Table;
   public readonly lambdaExecutionRole: iam.Role;
   public readonly userPool: cognito.UserPool;
@@ -31,33 +31,12 @@ export class DocumentManagementStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // S3 Bucket for document storage with lifecycle policies
-    this.documentsBucket = new s3.Bucket(this, 'DocumentsBucket', {
-      // Let CDK generate a unique bucket name
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      versioned: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      lifecycleRules: [
-        {
-          id: 'TransitionToIA',
-          transitions: [
-            {
-              storageClass: s3.StorageClass.INFREQUENT_ACCESS,
-              transitionAfter: cdk.Duration.days(30),
-            },
-          ],
-        },
-      ],
-      cors: [
-        {
-          allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST],
-          allowedOrigins: ['*'],
-          allowedHeaders: ['*'],
-          maxAge: 3000,
-        },
-      ],
-    });
+    // Import existing S3 Bucket for document storage
+    this.documentsBucket = s3.Bucket.fromBucketName(
+      this,
+      'DocumentsBucket',
+      'knowledgebasestack-localdatabucket845b62cf-msc8u27pzhzf'
+    );
 
     // DynamoDB Table for document metadata
     this.documentsTable = new dynamodb.Table(this, 'DocumentsTable', {

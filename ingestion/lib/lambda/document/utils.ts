@@ -16,19 +16,35 @@ export function generateDocumentId(): string {
 }
 
 /**
- * Generate S3 key for document storage
- * Format: {organizationId}/{documentId}/{fileName}
+ * Sanitize string for use in S3 key
+ * Replaces spaces and special characters with hyphens
  */
-export function generateS3Key(organizationId: string, documentId: string, fileName: string): string {
-  return `${organizationId}/${documentId}/${fileName}`;
+function sanitizeForS3Key(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
+ * Generate S3 key for document storage
+ * Format: {location}/{documentId}/{fileName}
+ * Note: location serves as the organization/top-level folder
+ */
+export function generateS3Key(location: string, documentId: string, fileName: string): string {
+  const sanitizedLocation = sanitizeForS3Key(location);
+  return `${sanitizedLocation}/${documentId}/${fileName}`;
 }
 
 /**
  * Generate S3 key for Bedrock metadata file
- * Format: {organizationId}/{documentId}/{documentId}.metadata.json
+ * Format: {location}/{documentId}/{documentId}.metadata.json
+ * Note: location serves as the organization/top-level folder
  */
-export function generateMetadataS3Key(organizationId: string, documentId: string): string {
-  return `${organizationId}/${documentId}/${documentId}.metadata.json`;
+export function generateMetadataS3Key(location: string, documentId: string): string {
+  const sanitizedLocation = sanitizeForS3Key(location);
+  return `${sanitizedLocation}/${documentId}/${documentId}.metadata.json`;
 }
 
 /**

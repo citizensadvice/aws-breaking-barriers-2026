@@ -4,6 +4,26 @@
  */
 
 /**
+ * Valid locations (organizations) for document upload
+ */
+export const VALID_LOCATIONS = ['croydon', 'manchester', 'arun-chichester'] as const;
+export type ValidLocation = typeof VALID_LOCATIONS[number];
+
+/**
+ * Check if a location is valid
+ */
+export function isValidLocation(location: string): location is ValidLocation {
+  return VALID_LOCATIONS.includes(location.toLowerCase() as ValidLocation);
+}
+
+/**
+ * Get list of valid locations as a formatted string
+ */
+export function getValidLocationsString(): string {
+  return VALID_LOCATIONS.join(', ');
+}
+
+/**
  * Supported file extensions for document upload
  * Requirements: 1.1, 1.2, 1.3
  */

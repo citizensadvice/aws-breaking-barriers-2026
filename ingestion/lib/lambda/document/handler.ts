@@ -20,6 +20,7 @@ import {
 import { createSuccessResponse, createErrorResponse, extractUserContext } from './utils';
 import { convertGoogleDoc, validateGoogleDocsUrl } from '../conversion/google-docs-service';
 import { fetchWebContent, validateWebUrl, isGoogleDocsUrl } from '../conversion/web-content-service';
+import { isValidLocation, getValidLocationsString } from '../../shared/types';
 
 /**
  * Main handler for document operations
@@ -94,6 +95,15 @@ async function handleUpload(
 
     if (!body.metadata.location) {
       return createErrorResponse('MISSING_LOCATION', 'Location metadata is required', 400);
+    }
+
+    // Validate location against predefined list
+    if (!isValidLocation(body.metadata.location)) {
+      return createErrorResponse(
+        'INVALID_LOCATION',
+        `Invalid location. Must be one of: ${getValidLocationsString()}`,
+        400
+      );
     }
 
     // Validate sensitivity if provided
@@ -209,7 +219,7 @@ async function handleUpload(
         );
       }
     } else {
-      fileContent = Buffer.from(body.fileContent, 'base64');
+      fileContent = Buffer.from(body.fileContent!, 'base64');
     }
 
     const document = await createDocument({

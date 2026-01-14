@@ -15,35 +15,18 @@ describe('DocumentManagementStack', () => {
     expect(template.toJSON()).toBeDefined();
   });
 
-  test('S3 bucket is created with lifecycle policy', () => {
-    template.hasResourceProperties('AWS::S3::Bucket', {
-      BucketEncryption: {
-        ServerSideEncryptionConfiguration: [
-          {
-            ServerSideEncryptionByDefault: {
-              SSEAlgorithm: 'AES256',
-            },
-          },
-        ],
-      },
-      LifecycleConfiguration: {
-        Rules: Match.arrayWith([
-          Match.objectLike({
-            Id: 'TransitionToIA',
-            Transitions: Match.arrayWith([
-              Match.objectLike({
-                StorageClass: 'STANDARD_IA',
-                TransitionInDays: 30,
-              }),
-            ]),
-          }),
-        ]),
-      },
-      PublicAccessBlockConfiguration: {
-        BlockPublicAcls: true,
-        BlockPublicPolicy: true,
-        IgnorePublicAcls: true,
-        RestrictPublicBuckets: true,
+  test('Stack uses existing S3 bucket', () => {
+    // Since we're importing an existing bucket, it won't appear in the CloudFormation template
+    // We can verify the stack was created successfully instead
+    expect(template.toJSON()).toBeDefined();
+    
+    // Verify Lambda functions have the bucket name in their environment
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'DocumentManagementDocumentHandler',
+      Environment: {
+        Variables: Match.objectLike({
+          DOCUMENTS_BUCKET_NAME: 'knowledgebasestack-localdatabucket845b62cf-msc8u27pzhzf',
+        }),
       },
     });
   });
