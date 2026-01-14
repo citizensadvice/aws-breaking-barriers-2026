@@ -1,0 +1,160 @@
+/* File Validator Styles */
+.file-validator {
+  margin: 1rem 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+}
+
+/* Requirements Section */
+.file-validator__requirements {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.file-validator__requirements-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-validator__requirements-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-validator__requirement {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.file-validator__requirement-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.file-validator__requirement-value {
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+/* Errors Section */
+.file-validator__errors {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.file-validator__errors-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.file-validator__errors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.file-validator__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.file-validator__error-icon {
+  flex-shrink: 0;
+  color: #dc2626;
+  margin-top: 0.125rem;
+}
+
+.file-validator__error-message {
+  font-size: 0.875rem;
+  color: #dc2626;
+  line-height: 1.4;
+}
+
+/* Success Section */
+.file-validator__success {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.file-validator__success-icon {
+  flex-shrink: 0;
+  color: #16a34a;
+}
+
+.file-validator__success-message {
+  font-size: 0.875rem;
+  color: #16a34a;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (min-width: 640px) {
+  .file-validator__requirement {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .file-validator__requirement-label {
+    min-width: 140px;
+    flex-shrink: 0;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .file-validator__requirements {
+    background-color: #1f2937;
+    border-color: #374151;
+  }
+  
+  .file-validator__requirements-title {
+    color: #f9fafb;
+  }
+  
+  .file-validator__requirement-label {
+    color: #9ca3af;
+  }
+  
+  .file-validator__requirement-value {
+    color: #f3f4f6;
+  }
+  
+  .file-validator__errors {
+    background-color: #1f1917;
+    border-color: #451a03;
+  }
+  
+  .file-validator__success {
+    background-color: #14532d;
+    border-color: #166534;
+  }
+}

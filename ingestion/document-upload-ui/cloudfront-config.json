@@ -1,0 +1,67 @@
+{
+  "Comment": "Document Upload UI CloudFront Distribution Configuration",
+  "CallerReference": "document-upload-ui-${TIMESTAMP}",
+  "Aliases": {
+    "Quantity": 0
+  },
+  "DefaultRootObject": "index.html",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3-document-upload-ui",
+        "DomainName": "${S3_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com",
+        "S3OriginConfig": {
+          "OriginAccessIdentity": "origin-access-identity/cloudfront/${OAI_ID}"
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3-document-upload-ui",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": ["GET", "HEAD"],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": ["GET", "HEAD"]
+      }
+    },
+    "Compress": true,
+    "ForwardedValues": {
+      "QueryString": false,
+      "Cookies": {
+        "Forward": "none"
+      }
+    },
+    "MinTTL": 0,
+    "DefaultTTL": 86400,
+    "MaxTTL": 31536000
+  },
+  "CustomErrorResponses": {
+    "Quantity": 2,
+    "Items": [
+      {
+        "ErrorCode": 403,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 300
+      },
+      {
+        "ErrorCode": 404,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 300
+      }
+    ]
+  },
+  "Comment": "SPA routing support - redirect 404/403 to index.html",
+  "PriceClass": "PriceClass_100",
+  "Enabled": true,
+  "ViewerCertificate": {
+    "CloudFrontDefaultCertificate": true,
+    "MinimumProtocolVersion": "TLSv1.2_2021"
+  },
+  "HttpVersion": "http2"
+}

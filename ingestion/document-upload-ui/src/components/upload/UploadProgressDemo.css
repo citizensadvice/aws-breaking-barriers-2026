@@ -1,0 +1,175 @@
+.upload-progress-demo {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.upload-progress-demo__header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.upload-progress-demo__title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+.upload-progress-demo__description {
+  font-size: 1.125rem;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.upload-progress-demo__section {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.upload-progress-demo__section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-progress-demo__status {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.upload-progress-demo__status-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 0.75rem 0;
+}
+
+.upload-progress-demo__status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.upload-progress-demo__status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.upload-progress-demo__status-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.upload-progress-demo__status-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.upload-progress-demo__status-value--success {
+  color: #059669;
+}
+
+.upload-progress-demo__status-value--error {
+  color: #dc2626;
+}
+
+.upload-progress-demo__status-value--cancelled {
+  color: #6b7280;
+}
+
+.upload-progress-demo__features {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.upload-progress-demo__features-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #0c4a6e;
+  margin: 0 0 1rem 0;
+}
+
+.upload-progress-demo__features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0.5rem;
+}
+
+.upload-progress-demo__features-list li {
+  font-size: 0.875rem;
+  color: #0c4a6e;
+  padding: 0.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .upload-progress-demo {
+    padding: 1rem;
+  }
+  
+  .upload-progress-demo__title {
+    font-size: 1.75rem;
+  }
+  
+  .upload-progress-demo__description {
+    font-size: 1rem;
+  }
+  
+  .upload-progress-demo__section {
+    padding: 1rem;
+  }
+  
+  .upload-progress-demo__status-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .upload-progress-demo__features-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .upload-progress-demo {
+    padding: 0.75rem;
+  }
+  
+  .upload-progress-demo__section {
+    padding: 0.75rem;
+  }
+  
+  .upload-progress-demo__status-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}

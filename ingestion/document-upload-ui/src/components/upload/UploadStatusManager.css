@@ -1,0 +1,207 @@
+.upload-status-manager {
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.upload-status-manager__actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.upload-status-manager__start-button {
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.upload-status-manager__start-button:hover {
+  background: linear-gradient(135deg, #0056b3, #004085);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.upload-status-manager__start-button:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+.upload-status-manager__start-button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.upload-status-manager__cancel-all-button {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+}
+
+.upload-status-manager__cancel-all-button:hover {
+  background: #c82333;
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+  transform: translateY(-1px);
+}
+
+.upload-status-manager__cancel-all-button:focus {
+  outline: 2px solid #dc3545;
+  outline-offset: 2px;
+}
+
+.upload-status-manager__reset-button {
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.2);
+}
+
+.upload-status-manager__reset-button:hover {
+  background: #5a6268;
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+  transform: translateY(-1px);
+}
+
+.upload-status-manager__reset-button:focus {
+  outline: 2px solid #6c757d;
+  outline-offset: 2px;
+}
+
+.upload-status-manager__summary {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.upload-status-manager__summary-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.upload-status-manager__summary-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.upload-status-manager__summary-stat {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  background: #e9ecef;
+  color: #495057;
+}
+
+.upload-status-manager__summary-stat--success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.upload-status-manager__summary-stat--error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Success and Error Messages */
+.upload-status-manager__message {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin: 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.upload-status-manager__message--success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.upload-status-manager__message--error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.upload-status-manager__message-icon {
+  flex-shrink: 0;
+}
+
+.upload-status-manager__message-text {
+  flex: 1;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .upload-status-manager__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .upload-status-manager__start-button,
+  .upload-status-manager__cancel-all-button,
+  .upload-status-manager__reset-button {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .upload-status-manager__summary-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .upload-status-manager__start-button,
+  .upload-status-manager__cancel-all-button,
+  .upload-status-manager__reset-button {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .upload-status-manager__summary {
+    padding: 0.75rem;
+  }
+}
