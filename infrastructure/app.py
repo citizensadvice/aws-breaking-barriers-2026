@@ -3,6 +3,7 @@ import aws_cdk as cdk
 from stacks.opensearch_stack import OpenSearchStack
 from stacks.knowledge_base_stack import KnowledgeBaseStack
 from stacks.agent_stack import AgentStack
+from stacks.frontend_stack import FrontendStack
 
 app = cdk.App()
 
@@ -34,5 +35,15 @@ agent_stack = AgentStack(
 
 # Add explicit dependency
 agent_stack.add_dependency(knowledge_base_stack)
+
+# Deploy Frontend stack with API Gateway + Lambda
+frontend_stack = FrontendStack(
+    app,
+    "FrontendStack",
+    agent_runtime_arn=agent_stack.runtime_arn
+)
+
+# Add explicit dependency
+frontend_stack.add_dependency(agent_stack)
 
 app.synth()

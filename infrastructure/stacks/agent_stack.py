@@ -25,7 +25,6 @@ class AgentStack(Stack):
             actions=[
                 "bedrock:InvokeModel",
                 "bedrock:InvokeModelWithResponseStream",
-                "bedrock-agent:*",
                 "bedrock-agentcore:*",
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
@@ -39,8 +38,8 @@ class AgentStack(Stack):
         kb_access = iam.PolicyStatement(
             effect=iam.Effect.ALLOW,
             actions=[
-                "bedrock-agent-runtime:Retrieve",
-                "bedrock-agent-runtime:RetrieveAndGenerate",
+                "bedrock:Retrieve",
+                "bedrock:RetrieveAndGenerate",
             ],
             resources=[
                 f"arn:aws:bedrock:{self.region}:{self.account}:knowledge-base/{national_kb_id}",
@@ -66,7 +65,7 @@ class AgentStack(Stack):
         )
 
         # AgentCore Runtime
-        runtime = bedrockagentcore.CfnRuntime(
+        self.runtime = bedrockagentcore.CfnRuntime(
             self,
             "CitizensAdviceRuntime",
             agent_runtime_artifact=bedrockagentcore.CfnRuntime.AgentRuntimeArtifactProperty(
@@ -86,23 +85,25 @@ class AgentStack(Stack):
                 network_mode="PUBLIC",
             ),
             role_arn=runtime_role.role_arn,
-            description="UK Citizens Advice AgentCore Runtime",
+            description="UK Citizens Advice AgentCore Runtime v2.2",
             environment_variables={
                 "NATIONAL_KB_ID": national_kb_id,
                 "LOCAL_KB_ID": local_kb_id,
                 "REGION": f"{self.region}",
             },
         )
+        
+        self.runtime_arn = self.runtime.attr_agent_runtime_arn
 
         # Outputs
         CfnOutput(
             self, "AgentCoreRuntimeId",
-            value=runtime.attr_agent_runtime_id,
+            value=self.runtime.attr_agent_runtime_id,
             description="AgentCore Runtime ID"
         )
 
         CfnOutput(
             self, "AgentCoreRuntimeArn",
-            value=runtime.attr_agent_runtime_arn,
+            value=self.runtime.attr_agent_runtime_arn,
             description="AgentCore Runtime ARN"
         )
