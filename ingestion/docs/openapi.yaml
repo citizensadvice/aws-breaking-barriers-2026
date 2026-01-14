@@ -1,0 +1,598 @@
+openapi: 3.0.3
+info:
+  title: Document Management API
+  description: |
+    REST API for document management operations including upload, retrieval, 
+    metadata management, and search functionality. Integrates with AWS Bedrock 
+    Knowledge Bases for semantic search.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: https://y4ddrug6ih.execute-api.us-west-2.amazonaws.com/prod
+    description: Production server
+
+security:
+  - CognitoAuth: []
+
+tags:
+  - name: Documents
+    description: Document CRUD operations
+  - name: Search
+    description: Document search operations
+
+paths:
+  /documents:
+    post:
+      tags: [Documents]
+      summary: Upload a document
+      description: Upload a new document with metadata. Supports PDF, Word, and PowerPoint files.
+      operationId: uploadDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadDocumentRequest'
+            example:
+              fileName: "contract.pdf"
+              fileContent: "JVBERi0xLjQK..."
+              metadata:
+                location: "New York"
+                category: "Legal"
+                sensitivity: 3
+      responses:
+        '201':
+          description: Document created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingLocation:
+                  value:
+                    error: "MISSING_LOCATION"
+                    message: "Location metadata is required"
+                unsupportedType:
+                  value:
+                    error: "UNSUPPORTED_FILE_TYPE"
+                    message: "File type .txt is not supported"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Documents]
+      summary: List documents
+      description: List all documents the user is authorized to access with optional filtering.
+      operationId: listDocuments
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: fileExtension
+          in: query
+          schema:
+            type: string
+        - name: sensitivity
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDocumentsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /documents/{id}:
+    get:
+      tags: [Documents]
+      summary: Get document by ID
+      description: Retrieve a document's metadata and a presigned download URL.
+      operationId: getDocument
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Document details with download URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDocumentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Documents]
+      summary: Update document
+      description: Update document file and/or metadata. Increments version number.
+      operationId: updateDocument
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDocumentRequest'
+      responses:
+        '200':
+          description: Document updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Documents]
+      summary: Delete document
+      description: Delete a document from storage and metadata store.
+      operationId: deleteDocument
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200':
+          description: Document deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Document deleted successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents/{id}/metadata:
+    patch:
+      tags: [Documents]
+      summary: Update document metadata
+      description: Update only the metadata of a document without replacing the file.
+      operationId: updateDocumentMetadata
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMetadataRequest'
+      responses:
+        '200':
+          description: Metadata updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /search:
+    post:
+      tags: [Search]
+      summary: Search by metadata
+      description: Search documents using metadata filters with pagination.
+      operationId: searchByMetadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetadataSearchRequest'
+            example:
+              location: "New York"
+              category: "Legal"
+              sensitivity: 3
+              page: 1
+              pageSize: 20
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataSearchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /search/semantic:
+    post:
+      tags: [Search]
+      summary: Semantic search
+      description: Search documents using natural language queries via Bedrock Knowledge Base.
+      operationId: searchSemantic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SemanticSearchRequest'
+            example:
+              query: "contracts related to real estate in New York"
+              filters:
+                location: "New York"
+              maxResults: 10
+      responses:
+        '200':
+          description: Semantic search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticSearchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Cognito JWT token. Obtain via:
+        ```
+        aws cognito-idp initiate-auth \
+          --client-id <client-id> \
+          --auth-flow USER_PASSWORD_AUTH \
+          --auth-parameters USERNAME=<email>,PASSWORD=<password>
+        ```
+
+  parameters:
+    DocumentId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Document unique identifier
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "UNAUTHORIZED"
+            message: "Authentication required"
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "FORBIDDEN"
+            message: "You do not have permission to perform this action"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "NOT_FOUND"
+            message: "Document not found"
+
+  schemas:
+    DocumentMetadata:
+      type: object
+      required: [location]
+      properties:
+        location:
+          type: string
+          description: Geographic location where the document applies
+          example: "New York"
+        category:
+          type: string
+          description: Custom category for organization
+          example: "Legal"
+        expiryDate:
+          type: string
+          format: date
+          description: Optional expiry date (ISO 8601)
+          example: "2025-12-31"
+        sensitivity:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 3
+          description: Sensitivity ranking (1=low, 5=high)
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        organizationId:
+          type: string
+        fileName:
+          type: string
+        fileExtension:
+          type: string
+          enum: [".pdf", ".doc", ".docx", ".ppt", ".pptx"]
+        s3Key:
+          type: string
+        location:
+          type: string
+        category:
+          type: string
+        expiryDate:
+          type: string
+          format: date
+        sensitivity:
+          type: integer
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [active, processing, failed]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DocumentSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        fileExtension:
+          type: string
+        location:
+          type: string
+        category:
+          type: string
+        sensitivity:
+          type: integer
+        version:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UploadDocumentRequest:
+      type: object
+      required: [fileName, metadata]
+      properties:
+        fileName:
+          type: string
+          description: Original file name with extension
+          example: "contract.pdf"
+        fileContent:
+          type: string
+          format: byte
+          description: Base64-encoded file content (required if no URL provided)
+        googleDocsUrl:
+          type: string
+          format: uri
+          description: Google Docs URL (alternative to fileContent)
+        webUrl:
+          type: string
+          format: uri
+          description: Web URL to HTML page or PDF file (alternative to fileContent)
+          example: "https://example.com/document.pdf"
+        metadata:
+          $ref: '#/components/schemas/DocumentMetadata'
+
+    UpdateDocumentRequest:
+      type: object
+      properties:
+        fileName:
+          type: string
+        fileContent:
+          type: string
+          format: byte
+        metadata:
+          $ref: '#/components/schemas/DocumentMetadata'
+
+    UpdateMetadataRequest:
+      type: object
+      properties:
+        location:
+          type: string
+        category:
+          type: string
+        expiryDate:
+          type: string
+          format: date
+        sensitivity:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    DocumentResponse:
+      type: object
+      properties:
+        document:
+          $ref: '#/components/schemas/Document'
+
+    GetDocumentResponse:
+      type: object
+      properties:
+        document:
+          $ref: '#/components/schemas/Document'
+        downloadUrl:
+          type: string
+          format: uri
+          description: Presigned S3 URL for download (expires in 1 hour)
+
+    ListDocumentsResponse:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentSummary'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        hasMore:
+          type: boolean
+
+    MetadataSearchRequest:
+      type: object
+      properties:
+        location:
+          type: string
+        category:
+          type: string
+        fileExtension:
+          type: string
+        sensitivity:
+          type: integer
+        minSensitivity:
+          type: integer
+        maxSensitivity:
+          type: integer
+        expiryDateBefore:
+          type: string
+          format: date
+        expiryDateAfter:
+          type: string
+          format: date
+        page:
+          type: integer
+          default: 1
+        pageSize:
+          type: integer
+          default: 20
+
+    MetadataSearchResponse:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentSummary'
+        totalCount:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        hasMore:
+          type: boolean
+
+    SemanticSearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: Natural language search query
+          example: "contracts related to real estate"
+        filters:
+          type: object
+          properties:
+            location:
+              type: string
+            category:
+              type: string
+        maxResults:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+
+    SemanticSearchResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              documentId:
+                type: string
+              relevanceScore:
+                type: number
+              textPassage:
+                type: string
+              metadata:
+                type: object
+        totalResults:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
