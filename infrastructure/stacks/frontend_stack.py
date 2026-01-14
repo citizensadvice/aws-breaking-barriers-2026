@@ -6,8 +6,14 @@ from aws_cdk import (
     aws_iam as iam,
     aws_sqs as sqs,
     aws_lambda_event_sources as lambda_event_sources,
+    aws_cognito as cognito,
+    aws_s3 as s3,
+    aws_s3_deployment as s3_deployment,
+    aws_cloudfront as cloudfront,
+    aws_cloudfront_origins as origins,
     Duration,
-    CfnOutput
+    CfnOutput,
+    RemovalPolicy
 )
 from constructs import Construct
 
@@ -21,109 +27,22 @@ class FrontendStack(Stack):
             layer_version_arn=f"arn:aws:lambda:{self.region}:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-arm64:28"
         )
         
-        # Lambda function to invoke AgentCore
-        invoke_agent_fn = lambda_.Function(
-            self, "InvokeAgentFunction",
-            runtime=lambda_.Runtime.PYTHON_3_13,
-            architecture=lambda_.Architecture.ARM_64,
-            handler="handler.lambda_handler",
-            code=lambda_.Code.from_asset("lambdas/invoke-agent"),
-            layers=[powertools_layer],
-            timeout=Duration.seconds(300),
-            environment={
-                "AGENT_RUNTIME_ARN": agent_runtime_arn,
-                "POWERTOOLS_SERVICE_NAME": "invoke-agent",
-                "LOG_LEVEL": "INFO"
-            }
-        )
+        # ===== Streaming API Gateway with SQS Integration =====
         
-        # Grant Lambda permission to invoke AgentCore runtime
-        invoke_agent_fn.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=["bedrock-agentcore:InvokeAgentRuntime"],
-                resources=[agent_runtime_arn, f"{agent_runtime_arn}/*"]
-            )
-        )
-        
-        # API Gateway REST API
+        # Create REST API for streaming invocation
         api = apigw.RestApi(
-            self, "AgentAPI",
-            rest_api_name="Citizens Advice Agent API",
-            description="API for invoking Citizens Advice AgentCore runtime",
-            deploy_options=apigw.StageOptions(
-                stage_name="prod",
-                throttling_rate_limit=100,
-                throttling_burst_limit=200
-            )
-        )
-        
-        # Lambda integration
-        integration = apigw.LambdaIntegration(invoke_agent_fn)
-        
-        # Add /invoke endpoint with IAM authorization
-        api.root.add_resource("invoke").add_method(
-            "POST", 
-            integration,
-            authorization_type=apigw.AuthorizationType.IAM
-        )
-        
-        # Outputs
-        CfnOutput(
-            self, "ApiUrl",
-            value=api.url,
-            description="API Gateway endpoint URL"
-        )
-        
-        CfnOutput(
-            self, "InvokeEndpoint",
-            value=f"{api.url}invoke",
-            description="Agent invocation endpoint"
-        )
-        
-        # ===== Direct Bedrock AgentCore Integration with Streaming =====
-        
-        # IAM Role for API Gateway to invoke Bedrock AgentCore
-        direct_api_role = iam.Role(
-            self, "DirectApiGatewayInvokeRole",
-            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
-            inline_policies={
-                "InvokeBedrockAgentCorePolicy": iam.PolicyDocument(
-                    statements=[
-                        iam.PolicyStatement(
-                            actions=["bedrock-agentcore:InvokeAgentRuntime"],
-                            resources=[agent_runtime_arn, f"{agent_runtime_arn}/*"]
-                        )
-                    ]
-                )
-            }
-        )
-        
-        # Create second REST API for direct streaming invocation
-        direct_api = apigw.RestApi(
-            self, "DirectBedrockAgentApi",
-            rest_api_name="Citizens Advice Direct Streaming API",
-            description="Direct invocation of Bedrock AgentCore Runtime with streaming support",
+            self, "StreamingAgentApi",
+            rest_api_name="Citizens Advice Streaming API",
+            description="Streaming invocation of Bedrock AgentCore Runtime via SQS",
             default_cors_preflight_options=apigw.CorsOptions(
                 allow_origins=apigw.Cors.ALL_ORIGINS,
                 allow_methods=apigw.Cors.ALL_METHODS,
+                allow_headers=apigw.Cors.DEFAULT_HEADERS
             )
         )
         
         # Add /invoke resource
-        direct_invoke_resource = direct_api.root.add_resource("invoke")
-        
-        # Outputs for direct API
-        CfnOutput(
-            self, "DirectApiUrl",
-            value=direct_api.url,
-            description="Direct streaming API Gateway endpoint URL"
-        )
-        
-        CfnOutput(
-            self, "DirectInvokeEndpoint",
-            value=f"{direct_api.url}invoke",
-            description="Direct streaming agent invocation endpoint"
-        )
+        invoke_resource = api.root.add_resource("invoke")
         
         # ===== AppSync Events API for Streaming =====
         
@@ -241,14 +160,27 @@ class FrontendStack(Stack):
             )
         )
         
-        # Update direct API to use SQS integration
-        direct_invoke_resource.add_method(
+        # Update API to use SQS integration
+        invoke_resource.add_method(
             "POST",
             sqs_integration,
             authorization_type=apigw.AuthorizationType.IAM,
             method_responses=[
                 apigw.MethodResponse(status_code="202")
             ]
+        )
+        
+        # Outputs for API Gateway
+        CfnOutput(
+            self, "ApiUrl",
+            value=api.url,
+            description="Streaming API Gateway endpoint URL"
+        )
+        
+        CfnOutput(
+            self, "InvokeEndpoint",
+            value=f"{api.url}invoke",
+            description="Streaming agent invocation endpoint"
         )
         
         # Outputs for AppSync Events
@@ -268,4 +200,211 @@ class FrontendStack(Stack):
             self, "AgentRequestQueueUrl",
             value=agent_request_queue.queue_url,
             description="SQS Queue URL for agent requests"
+        )
+        
+        # ===== Cognito User Pool and Identity Pool =====
+        
+        # Create Cognito User Pool
+        user_pool = cognito.UserPool(
+            self, "CitizensAdviceUserPool",
+            user_pool_name="citizens-advice-users",
+            self_sign_up_enabled=True,
+            sign_in_aliases=cognito.SignInAliases(email=True),
+            auto_verify=cognito.AutoVerifiedAttrs(email=True),
+            password_policy=cognito.PasswordPolicy(
+                min_length=8,
+                require_lowercase=True,
+                require_uppercase=True,
+                require_digits=True,
+                require_symbols=False
+            ),
+            removal_policy=RemovalPolicy.DESTROY
+        )
+        
+        # Create User Pool Client
+        user_pool_client = user_pool.add_client(
+            "CitizensAdviceWebClient",
+            auth_flows=cognito.AuthFlow(
+                user_password=True,
+                user_srp=True
+            ),
+            o_auth=cognito.OAuthSettings(
+                flows=cognito.OAuthFlows(
+                    authorization_code_grant=True,
+                    implicit_code_grant=True
+                ),
+                scopes=[cognito.OAuthScope.EMAIL, cognito.OAuthScope.OPENID, cognito.OAuthScope.PROFILE]
+            )
+        )
+        
+        # Create Identity Pool
+        identity_pool = cognito.CfnIdentityPool(
+            self, "CitizensAdviceIdentityPool",
+            identity_pool_name="citizens_advice_identity_pool",
+            allow_unauthenticated_identities=False,
+            cognito_identity_providers=[
+                cognito.CfnIdentityPool.CognitoIdentityProviderProperty(
+                    client_id=user_pool_client.user_pool_client_id,
+                    provider_name=user_pool.user_pool_provider_name
+                )
+            ]
+        )
+        
+        # Create IAM role for authenticated users
+        authenticated_role = iam.Role(
+            self, "CognitoAuthenticatedRole",
+            assumed_by=iam.FederatedPrincipal(
+                "cognito-identity.amazonaws.com",
+                conditions={
+                    "StringEquals": {
+                        "cognito-identity.amazonaws.com:aud": identity_pool.ref
+                    },
+                    "ForAnyValue:StringLike": {
+                        "cognito-identity.amazonaws.com:amr": "authenticated"
+                    }
+                },
+                assume_role_action="sts:AssumeRoleWithWebIdentity"
+            )
+        )
+        
+        
+        # Grant API Gateway invoke permissions
+        authenticated_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["execute-api:Invoke"],
+                resources=[f"{api.arn_for_execute_api()}/*"]
+            )
+        )
+        
+        # Grant AppSync Events permissions
+        authenticated_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["appsync:EventConnect", "appsync:EventSubscribe"],
+                resources=[f"{event_api.api_arn}/*"]
+            )
+        )
+        
+        # Attach role to identity pool
+        cognito.CfnIdentityPoolRoleAttachment(
+            self, "IdentityPoolRoleAttachment",
+            identity_pool_id=identity_pool.ref,
+            roles={
+                "authenticated": authenticated_role.role_arn
+            }
+        )
+        
+        # ===== S3 Bucket for Frontend Hosting =====
+        
+        frontend_bucket = s3.Bucket(
+            self, "FrontendBucket",
+            bucket_name=f"citizens-advice-frontend-{self.account}-{self.region}",
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL
+        )
+        
+        # ===== CloudFront Distribution =====
+        
+        # Origin Access Control for CloudFront
+        oac = cloudfront.CfnOriginAccessControl(
+            self, "FrontendOAC",
+            origin_access_control_config=cloudfront.CfnOriginAccessControl.OriginAccessControlConfigProperty(
+                name="citizens-advice-frontend-oac",
+                origin_access_control_origin_type="s3",
+                signing_behavior="always",
+                signing_protocol="sigv4"
+            )
+        )
+        
+        # CloudFront distribution
+        distribution = cloudfront.Distribution(
+            self, "FrontendDistribution",
+            default_behavior=cloudfront.BehaviorOptions(
+                origin=origins.S3Origin(frontend_bucket),
+                viewer_protocol_policy=cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+                allowed_methods=cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+                cached_methods=cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS
+            ),
+            default_root_object="index.html",
+            error_responses=[
+                cloudfront.ErrorResponse(
+                    http_status=404,
+                    response_http_status=200,
+                    response_page_path="/index.html",
+                    ttl=Duration.minutes(5)
+                ),
+                cloudfront.ErrorResponse(
+                    http_status=403,
+                    response_http_status=200,
+                    response_page_path="/index.html",
+                    ttl=Duration.minutes(5)
+                )
+            ]
+        )
+        
+        # Get CloudFront distribution
+        cfn_distribution = distribution.node.default_child
+        
+        # Add OAC to distribution
+        cfn_distribution.add_property_override(
+            "DistributionConfig.Origins.0.OriginAccessControlId",
+            oac.attr_id
+        )
+        
+        # Remove OAI if present
+        cfn_distribution.add_property_override(
+            "DistributionConfig.Origins.0.S3OriginConfig.OriginAccessIdentity",
+            ""
+        )
+        
+        # Grant CloudFront OAC access to S3 bucket
+        frontend_bucket.add_to_resource_policy(
+            iam.PolicyStatement(
+                actions=["s3:GetObject"],
+                resources=[f"{frontend_bucket.bucket_arn}/*"],
+                principals=[iam.ServicePrincipal("cloudfront.amazonaws.com")],
+                conditions={
+                    "StringEquals": {
+                        "AWS:SourceArn": f"arn:aws:cloudfront::{self.account}:distribution/{distribution.distribution_id}"
+                    }
+                }
+            )
+        )
+        
+        # ===== Outputs =====
+        
+        CfnOutput(
+            self, "UserPoolId",
+            value=user_pool.user_pool_id,
+            description="Cognito User Pool ID"
+        )
+        
+        CfnOutput(
+            self, "UserPoolClientId",
+            value=user_pool_client.user_pool_client_id,
+            description="Cognito User Pool Client ID"
+        )
+        
+        CfnOutput(
+            self, "IdentityPoolId",
+            value=identity_pool.ref,
+            description="Cognito Identity Pool ID"
+        )
+        
+        CfnOutput(
+            self, "FrontendBucketName",
+            value=frontend_bucket.bucket_name,
+            description="S3 bucket for frontend hosting"
+        )
+        
+        CfnOutput(
+            self, "CloudFrontUrl",
+            value=f"https://{distribution.distribution_domain_name}",
+            description="CloudFront distribution URL"
+        )
+        
+        CfnOutput(
+            self, "CloudFrontDistributionId",
+            value=distribution.distribution_id,
+            description="CloudFront distribution ID"
         )

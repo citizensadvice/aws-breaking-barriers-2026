@@ -204,5 +204,7 @@ class KnowledgeBaseStack(Stack):
 
         # Export resources for other stacks
         self.deployment_bucket = deployment_bucket
+        self.national_bucket = national_data_bucket
+        self.local_bucket = local_data_bucket
         self.national_kb = national_kb
         self.local_kb = local_kb

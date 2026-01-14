@@ -40,7 +40,7 @@ agent_stack.add_dependency(knowledge_base_stack)
 frontend_stack = FrontendStack(
     app,
     "FrontendStack",
-    agent_runtime_arn=agent_stack.runtime_arn
+    agent_runtime_arn=agent_stack.runtime_arn,
 )
 
 # Add explicit dependency
