@@ -41,7 +41,7 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
     onMetadataChange(metadata);
   }, [metadata, onMetadataChange]);
 
-  const handleLocationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLocationChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setMetadata(prev => ({
       ...prev,
       location: e.target.value
@@ -144,23 +144,26 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
           <label htmlFor="location" className="metadata-form__label metadata-form__label--required">
             Location
             <HelpIcon 
-              content="Specify where this document applies. This helps organize documents by location or department."
+              content="Select the location where this document applies."
               position="right"
             />
           </label>
-          <input
+          <select
             id="location"
-            type="text"
             value={metadata.location}
             onChange={handleLocationChange}
             disabled={disabled}
             className={`metadata-form__input ${
               getFieldError('location') ? 'metadata-form__input--error' : ''
             }`}
-            placeholder="Where does this document apply? (e.g., Head Office, All Locations, Sydney Branch)"
             aria-describedby={getFieldError('location') ? 'location-error' : undefined}
             required
-          />
+          >
+            <option value="">Select a location...</option>
+            <option value="croydon">Croydon</option>
+            <option value="manchester">Manchester</option>
+            <option value="arun-chichester">Arun-Chichester</option>
+          </select>
           {getFieldError('location') && (
             <div id="location-error" className="metadata-form__error" role="alert">
               {getFieldError('location')}

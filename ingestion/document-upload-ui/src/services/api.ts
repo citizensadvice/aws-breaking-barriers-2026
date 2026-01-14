@@ -2,7 +2,7 @@ import { DocumentMetadata } from '../types/metadata';
 import { UploadResponse, UploadError } from '../types/upload';
 
 // API configuration
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://api.example.com';
+const API_BASE_URL = process.env.REACT_APP_API_ENDPOINT || 'https://y4ddrug6ih.execute-api.us-west-2.amazonaws.com/prod';
 const API_TIMEOUT = 30000; // 30 seconds
 
 // Upload state for resumable uploads
@@ -40,6 +40,7 @@ export class DocumentAPIClient {
 
   /**
    * Upload a file with metadata and progress tracking
+   * Converts file to base64 and sends as JSON per OpenAPI spec
    */
   async uploadFile(
     file: File,
@@ -48,44 +49,72 @@ export class DocumentAPIClient {
     onProgress?: (progress: number, uploadedBytes: number, totalBytes: number) => void
   ): Promise<UploadResponse> {
     try {
-      // Create FormData
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('location', metadata.location);
+      // Convert file to base64
+      const base64Content = await this.fileToBase64(file);
       
-      if (metadata.category) {
-        formData.append('category', metadata.category);
-      }
-      
-      if (metadata.expiryDate) {
-        formData.append('expiryDate', metadata.expiryDate.toISOString());
-      }
-      
-      if (metadata.title) {
-        formData.append('title', metadata.title);
-      }
+      // Prepare request body according to OpenAPI spec
+      const requestBody = {
+        fileName: file.name,
+        fileContent: base64Content,
+        metadata: {
+          location: metadata.location,
+          ...(metadata.category && { category: metadata.category }),
+          ...(metadata.expiryDate && { expiryDate: metadata.expiryDate.toISOString().split('T')[0] }),
+          ...(metadata.sensitivity && { sensitivity: metadata.sensitivity }),
+        }
+      };
 
       // Create abort controller for cancellation
       const abortController = new AbortController();
       this.abortControllers.set(fileId, abortController);
 
-      // Create XMLHttpRequest for progress tracking
-      const response = await this.uploadWithProgress(
-        `${API_BASE_URL}/documents/upload`,
-        formData,
-        fileId,
-        abortController.signal,
-        onProgress
-      );
+      // Upload using fetch with JSON body
+      const response = await fetch(`${API_BASE_URL}/documents`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        signal: abortController.signal,
+      });
 
       // Clean up abort controller
       this.abortControllers.delete(fileId);
 
-      return response;
+      if (!response.ok) {
+        throw await this.createErrorFromFetchResponse(response);
+      }
+
+      const result = await response.json();
+      
+      // Simulate progress for user feedback (since we can't track JSON upload progress easily)
+      if (onProgress) {
+        onProgress(100, file.size, file.size);
+      }
+
+      return result;
     } catch (error) {
       this.abortControllers.delete(fileId);
       throw this.handleError(error);
     }
+  }
+
+  /**
+   * Convert file to base64 string
+   */
+  private fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data URL prefix (e.g., "data:application/pdf;base64,")
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
   }
 
   /**
@@ -148,25 +177,31 @@ export class DocumentAPIClient {
 
   /**
    * Upload Google Docs link with metadata
+   * Uses the same /documents endpoint with googleDocsUrl field
    */
   async uploadGoogleDoc(
     url: string,
     metadata: DocumentMetadata
   ): Promise<UploadResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/documents/google-docs`, {
+      const requestBody = {
+        fileName: this.extractFileNameFromUrl(url),
+        googleDocsUrl: url,
+        metadata: {
+          location: metadata.location,
+          ...(metadata.category && { category: metadata.category }),
+          ...(metadata.expiryDate && { expiryDate: metadata.expiryDate.toISOString().split('T')[0] }),
+          ...(metadata.sensitivity && { sensitivity: metadata.sensitivity }),
+        }
+      };
+
+      const response = await fetch(`${API_BASE_URL}/documents`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.authToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          url,
-          location: metadata.location,
-          category: metadata.category,
-          expiryDate: metadata.expiryDate?.toISOString(),
-          title: metadata.title,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -176,6 +211,20 @@ export class DocumentAPIClient {
       return await response.json();
     } catch (error) {
       throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Extract filename from Google Docs URL
+   */
+  private extractFileNameFromUrl(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/');
+      const docId = pathParts[pathParts.indexOf('d') + 1] || 'google-doc';
+      return `${docId}.gdoc`;
+    } catch {
+      return 'google-doc.gdoc';
     }
   }
 

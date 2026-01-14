@@ -49,7 +49,7 @@ const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
     onMetadataChange(fileIndex, metadata);
   }, [metadata, onMetadataChange, fileIndex]);
 
-  const handleLocationChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLocationChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setMetadata(prev => ({
       ...prev,
       location: e.target.value
@@ -144,19 +144,22 @@ const IndividualMetadataForm: React.FC<IndividualMetadataFormProps> = ({
           <label htmlFor={`location-${fileIndex}`} className="individual-metadata-form__label individual-metadata-form__label--required">
             Location
           </label>
-          <input
+          <select
             id={`location-${fileIndex}`}
-            type="text"
             value={metadata.location}
             onChange={handleLocationChange}
             disabled={disabled}
             className={`individual-metadata-form__input ${
               getFieldError('location') ? 'individual-metadata-form__input--error' : ''
             }`}
-            placeholder="Where does this document apply?"
             aria-describedby={getFieldError('location') ? `location-error-${fileIndex}` : undefined}
             required
-          />
+          >
+            <option value="">Select a location...</option>
+            <option value="croydon">Croydon</option>
+            <option value="manchester">Manchester</option>
+            <option value="arun-chichester">Arun-Chichester</option>
+          </select>
           {getFieldError('location') && (
             <div id={`location-error-${fileIndex}`} className="individual-metadata-form__error" role="alert">
               {getFieldError('location')}

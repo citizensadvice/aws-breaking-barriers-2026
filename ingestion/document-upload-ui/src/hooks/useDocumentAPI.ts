@@ -9,12 +9,12 @@ export const useDocumentAPI = (): DocumentAPIClient | null => {
   const { user, isAuthenticated } = useAuth();
 
   const apiClient = useMemo(() => {
-    if (!isAuthenticated || !user?.accessToken) {
+    if (!isAuthenticated || !user?.idToken) {
       return null;
     }
 
-    return createAPIClient(user.accessToken);
-  }, [isAuthenticated, user?.accessToken]);
+    return createAPIClient(user.idToken);
+  }, [isAuthenticated, user?.idToken]);
 
   return apiClient;
 };

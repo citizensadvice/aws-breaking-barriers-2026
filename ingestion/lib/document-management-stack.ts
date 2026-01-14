@@ -17,8 +17,8 @@ export class DocumentManagementStack extends cdk.Stack {
   public readonly documentsBucket: s3.IBucket;
   public readonly documentsTable: dynamodb.Table;
   public readonly lambdaExecutionRole: iam.Role;
-  public readonly userPool: cognito.UserPool;
-  public readonly userPoolClient: cognito.UserPoolClient;
+  public readonly userPool: cognito.IUserPool;
+  public readonly userPoolClient: cognito.IUserPoolClient;
   public readonly opensearchCollection: opensearchserverless.CfnCollection;
   public readonly bedrockKnowledgeBaseRole: iam.Role;
   public readonly knowledgeBase: bedrock.CfnKnowledgeBase;
@@ -92,62 +92,19 @@ export class DocumentManagementStack extends cdk.Stack {
       resources: ['*'],
     }));
 
-    // Cognito User Pool for authentication
-    this.userPool = new cognito.UserPool(this, 'DocumentManagementUserPool', {
-      userPoolName: 'DocumentManagementUserPool',
-      selfSignUpEnabled: false,
-      signInAliases: {
-        email: true,
-      },
-      autoVerify: {
-        email: true,
-      },
-      standardAttributes: {
-        email: {
-          required: true,
-          mutable: true,
-        },
-      },
-      customAttributes: {
-        organizationId: new cognito.StringAttribute({
-          mutable: true,
-          minLen: 1,
-          maxLen: 256,
-        }),
-        role: new cognito.StringAttribute({
-          mutable: true,
-          minLen: 1,
-          maxLen: 50,
-        }),
-      },
-      passwordPolicy: {
-        minLength: 8,
-        requireLowercase: true,
-        requireUppercase: true,
-        requireDigits: true,
-        requireSymbols: true,
-      },
-      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-    });
+    // Import existing Cognito User Pool using ARN for full metadata
+    this.userPool = cognito.UserPool.fromUserPoolArn(
+      this,
+      'DocumentManagementUserPool',
+      `arn:aws:cognito-idp:us-west-2:${this.account}:userpool/us-west-2_9KCYSeeDQ`
+    );
 
-    // User Pool Client for JWT authentication
-    this.userPoolClient = this.userPool.addClient('DocumentManagementAppClient', {
-      userPoolClientName: 'DocumentManagementAppClient',
-      authFlows: {
-        userPassword: true,
-        userSrp: true,
-      },
-      generateSecret: false,
-      accessTokenValidity: cdk.Duration.hours(1),
-      idTokenValidity: cdk.Duration.hours(1),
-      refreshTokenValidity: cdk.Duration.days(30),
-      readAttributes: new cognito.ClientAttributes()
-        .withStandardAttributes({ email: true })
-        .withCustomAttributes('organizationId', 'role'),
-      writeAttributes: new cognito.ClientAttributes()
-        .withStandardAttributes({ email: true }),
-    });
+    // Import existing User Pool Client
+    this.userPoolClient = cognito.UserPoolClient.fromUserPoolClientId(
+      this,
+      'DocumentManagementAppClient',
+      '5nltqoc258ne9girat9bo244tt'
+    );
 
     // IAM Role for Bedrock Knowledge Base
     this.bedrockKnowledgeBaseRole = new iam.Role(this, 'BedrockKnowledgeBaseRole', {
@@ -489,7 +446,7 @@ export class DocumentManagementStack extends cdk.Stack {
           'X-Api-Key',
           'X-Amz-Security-Token',
         ],
-        allowCredentials: true,
+        allowCredentials: false, // Changed to false to work with wildcard origin
       },
     });
 

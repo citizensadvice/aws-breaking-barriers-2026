@@ -3,6 +3,7 @@ export interface DocumentMetadata {
   category?: string;
   expiryDate?: Date;
   title?: string;
+  sensitivity?: number; // 1-5 sensitivity ranking (1=low, 5=high)
   applyToAll?: boolean; // for bulk uploads
 }
 
