@@ -25,7 +25,7 @@ model = BedrockModel(
 
 NATIONAL_KB = os.getenv("NATIONAL_KB_ID")
 LOCAL_KB = os.getenv("LOCAL_KB_ID")
-LOCAL_COUNCILS = ["manchester", "westminister"]
+LOCAL_COUNCILS = ["arun-chichester", "croydon", "manchester", "westminister"]
 
 @tool
 def kb_search(query: str, kb_id: str, local_council: str = None) -> str:

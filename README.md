@@ -102,12 +102,12 @@ aws s3 cp deployment_package.zip s3://knowledgebasestack-deploymentbucketc91a09d
 
 # Update the AgentCore runtime via CLI
 aws bedrock-agentcore-control update-agent-runtime \
-  --agent-runtime-id CitizensAdviceRuntime-38W3AU4Msk \
+  --agent-runtime-id <YOUR_RUNTIME_ID> \
   --agent-runtime-artifact '{
     "codeConfiguration": {
       "code": {
         "s3": {
-          "bucket": "knowledgebasestack-deploymentbucketc91a09da-uee2lk6l86hw",
+          "bucket": "<YOUR_DEPLOYMENT_BUCKET>",
           "prefix": "deployment_package.zip"
         }
       },
@@ -115,11 +115,75 @@ aws bedrock-agentcore-control update-agent-runtime \
       "entryPoint": ["agent.py"]
     }
   }' \
-  --role-arn arn:aws:iam::732033934792:role/AgentStack-AgentCoreRuntimeRole32A8CA6E-gFVErgplUckg \
-  --network-configuration '{"networkMode": "PUBLIC"}'
+  --role-arn <YOUR_ROLE_ARN> \
+  --network-configuration '{"networkMode": "PUBLIC"}' \
+  --environment-variables '{
+    "LOCAL_KB_ID": "<YOUR_LOCAL_KB_ID>",
+    "NATIONAL_KB_ID": "<YOUR_NATIONAL_KB_ID>",
+    "REGION": "us-west-2"
+  }'
 ```
 
 **Note**: Replace bucket name, runtime ID, and role ARN with your actual values from CloudFormation outputs.
+
+## Frontend Deployment
+
+### 1. Install Dependencies
+```bash
+cd frontend
+npm install
+```
+
+### 2. Update Configuration Files
+
+After deploying FrontendStack, update the configuration files with CloudFormation outputs:
+
+**Update `frontend/src/config.ts`:**
+```typescript
+export const awsConfig = {
+  region: 'us-west-2',
+  userPoolId: 'YOUR_USER_POOL_ID',           // From FrontendStack.UserPoolId
+  userPoolClientId: 'YOUR_CLIENT_ID',        // From FrontendStack.UserPoolClientId
+  identityPoolId: 'YOUR_IDENTITY_POOL_ID',   // From FrontendStack.IdentityPoolId
+  apiEndpoint: 'YOUR_API_ENDPOINT',          // From FrontendStack.InvokeEndpoint
+  eventApiEndpoint: 'YOUR_EVENT_ENDPOINT',   // From FrontendStack.EventApiHttpEndpoint
+};
+```
+
+**Update `frontend/deploy-config.json`:**
+```json
+{
+  "frontendBucket": "YOUR_FRONTEND_BUCKET",           // From FrontendStack.FrontendBucketName
+  "cloudFrontDistributionId": "YOUR_DISTRIBUTION_ID", // From FrontendStack.CloudFrontDistributionId
+  "cloudFrontUrl": "YOUR_CLOUDFRONT_URL"              // From FrontendStack.CloudFrontUrl
+}
+```
+
+### 3. Build and Test Locally
+```bash
+# Build the frontend
+npm run build
+
+# Test locally (optional)
+npm run dev
+```
+
+### 4. Deploy to S3 and CloudFront
+```bash
+# Make deploy script executable (first time only)
+chmod +x deploy.sh
+
+# Deploy (reads from deploy-config.json automatically)
+./deploy.sh
+```
+
+The deploy script will:
+- Build the frontend
+- Upload to S3 bucket
+- Invalidate CloudFront cache
+
+### 5. Access Application
+Open the CloudFront URL from `FrontendStack.CloudFrontUrl` in your browser.
 
 ## Project Structure
 

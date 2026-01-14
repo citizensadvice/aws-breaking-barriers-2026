@@ -32,6 +32,11 @@ cdk.out/
 *.d.ts
 node_modules/
 
+# Frontend build
+frontend/dist/
+frontend/node_modules/
+frontend/deploy-config.json
+
 # IDE
 .vscode/
 .idea/

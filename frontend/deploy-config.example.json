@@ -1,0 +1,5 @@
+{
+  "frontendBucket": "YOUR_FRONTEND_BUCKET",
+  "cloudFrontDistributionId": "YOUR_DISTRIBUTION_ID",
+  "cloudFrontUrl": "https://YOUR_CLOUDFRONT_URL.cloudfront.net"
+}
