@@ -137,6 +137,7 @@ export class DocumentManagementStack extends cdk.Stack {
       authFlows: {
         userPassword: true,
         userSrp: true,
+        adminUserPassword: true, // Enable for smoke tests and admin operations
       },
       generateSecret: false,
       accessTokenValidity: cdk.Duration.hours(1),
