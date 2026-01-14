@@ -59,7 +59,8 @@ export default function ChatPage({ signOut }: ChatPageProps) {
                 // Append text to the last assistant message
                 setMessages(prev => {
                   const lastMessage = prev[prev.length - 1];
-                  if (lastMessage && lastMessage.role === 'assistant') {
+                  if (lastMessage && lastMessage.role === 'assistant' && !lastMessage.type) {
+                    // Only append if last message is NOT a tool_use message
                     return [
                       ...prev.slice(0, -1),
                       {
@@ -68,7 +69,7 @@ export default function ChatPage({ signOut }: ChatPageProps) {
                       }
                     ];
                   } else {
-                    // Create new assistant message
+                    // Create new assistant message (without type field)
                     return [
                       ...prev,
                       {

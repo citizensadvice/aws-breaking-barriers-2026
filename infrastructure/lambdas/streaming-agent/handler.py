@@ -102,7 +102,7 @@ def lambda_handler(event, context):
         
         # Process streaming events
         event_count = 0
-        for line in response["response"].iter_lines(chunk_size=10):
+        for line in response["response"].iter_lines(chunk_size=2048):
             if line:
                 line = line.decode("utf-8")
                 logger.info(f"Received line: {line}")
