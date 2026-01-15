@@ -117,7 +117,7 @@ async def agent_invocation(payload):
     stream = agent.stream_async(user_message)
     
     async for event in stream:
-        #print(event)
+        print(f"EVENT IN STREAM: {event}")
         yield event
 
 if __name__ == "__main__":
