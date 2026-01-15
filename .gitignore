@@ -47,6 +47,13 @@ frontend/deploy-config.json
 .DS_Store
 Thumbs.db
 
+# Draw.io backup files
+*.drawio.bkp
+*.drawio.dtmp
+
+# PowerPoint files
+*.pptx
+
 # Environment files
 .env
 .env.local
